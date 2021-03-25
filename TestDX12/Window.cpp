@@ -3,6 +3,7 @@
 #include "Window.h"
 #include "Resource.h"
 #include "winres.h"
+#include "Graphic.h"
 
 
 Window::Window()
@@ -41,6 +42,8 @@ Window::Window()
         NULL);
 
     SetWindowLong(m_Window, GWLP_USERDATA, reinterpret_cast<long>(this));
+
+    m_Graphic.reset(new Graphic(m_Window));
 }
 
 Window::~Window()

@@ -1,3 +1,5 @@
+#pragma once
+
 #define APP_ICON                       101
 
 #ifdef APSTUDIO_INVOKED

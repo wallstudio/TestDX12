@@ -24,7 +24,7 @@ int CALLBACK WinMain(
 	}
 	catch(std::exception e)
 	{
-		std::cout << e.what();
+		std::cout << e.what() << std::endl;
 #if UNICODE
 		auto message = std::string(e.what());
 		auto wideMessage = std::vector<TCHAR>(message.size() + 1);
