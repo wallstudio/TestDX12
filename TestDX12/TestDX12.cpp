@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <vector>
 #include "Window.h"
+#include "StringUtility.h"
 
 // /SUBSYSTEM: Console のエントリ
 int main(int argc, char* argv[])
@@ -25,15 +26,7 @@ int CALLBACK WinMain(
 	catch(std::exception e)
 	{
 		std::cout << e.what() << std::endl;
-#if UNICODE
-		auto message = std::string(e.what());
-		auto wideMessage = std::vector<TCHAR>(message.size() + 1);
-		ZeroMemory(wideMessage.data(), wideMessage.size());
-		MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, message.data(), message.size(), wideMessage.data(), wideMessage.size());
-		MessageBoxW(NULL, wideMessage.data(), TEXT("Error"), MB_OK);
-#else
-		MessageBoxA(NULL, e.what(), "Error", MB_OK);
-#endif
+		MessageBox(NULL, ToTString(e.what())->data(), TEXT("Error"), MB_OK);
 		return 1;
 	}
 

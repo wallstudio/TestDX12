@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include "Graphic.h"
+#include "StringUtility.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -32,14 +33,8 @@ Graphic::Graphic(HWND window)
     {
         DXGI_ADAPTER_DESC adapterDesc;
         AssertOK(adapter->GetDesc(&adapterDesc));
-
-		auto message = std::wstring(adapterDesc.Description);
-        auto multiByteMessage = std::vector<char>(message.size() * 2 + 1);
-		ZeroMemory(multiByteMessage.data(), multiByteMessage.size());
-		WideCharToMultiByte(CP_UTF8, 0, message.data(), message.size(), multiByteMessage.data(), multiByteMessage.size(), NULL, NULL);
-        std::cout << multiByteMessage.data() << std::endl;
+        std::cout << WideToMultiByte(adapterDesc.Description)->data() << std::endl;
     }
-    
 }
 
 Graphic::~Graphic()
