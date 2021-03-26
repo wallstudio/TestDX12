@@ -12,10 +12,10 @@ namespace std
     #endif
 }
 
-std::shared_ptr<std::string> WideToMultiByte(const WCHAR *source);
-std::shared_ptr<std::wstring> MultiByteToWide(const char *source);
+std::string WideToMultiByte(const WCHAR *source);
+std::wstring MultiByteToWide(const char *source);
 
-std::shared_ptr<std::tstring> ToTString(const WCHAR *source);
-std::shared_ptr<std::tstring> ToTString(const char *source);
-std::shared_ptr<std::string> ToWide(const TCHAR *source);
-std::shared_ptr<std::wstring> ToMultiByte(const TCHAR *source);
+std::tstring ToTString(const WCHAR *source);
+std::tstring ToTString(const char *source);
+std::string ToMultiByte(const TCHAR *source);
+std::wstring ToWide(const TCHAR *source);

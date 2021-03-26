@@ -33,7 +33,7 @@ Graphic::Graphic(HWND window)
     {
         DXGI_ADAPTER_DESC adapterDesc;
         AssertOK(adapter->GetDesc(&adapterDesc));
-        std::cout << WideToMultiByte(adapterDesc.Description)->data() << std::endl;
+        std::cout << WideToMultiByte(adapterDesc.Description).data() << std::endl;
     }
 }
 

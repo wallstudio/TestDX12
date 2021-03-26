@@ -28,7 +28,7 @@ int CALLBACK WinMain(
 	catch(std::exception e)
 	{
 		std::cout << e.what() << std::endl;
-		MessageBox(NULL, ToTString(e.what())->data(), TEXT("Error"), MB_OK);
+		MessageBox(NULL, ToTString(e.what()).data(), TEXT("Error"), MB_OK);
 		return 1;
 	}
 
