@@ -17,27 +17,32 @@ Graphic::Graphic(HWND window)
 {
     AssertOK(CoInitialize(NULL));
     
-    AssertOK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
     AssertOK(CreateDXGIFactory1(IID_PPV_ARGS(&m_Factory)));
-
-    auto adapters = std::vector<ComPtr<IDXGIAdapter>>();
-    for (auto i = 0; ; i++)
-    {
-        ComPtr<IDXGIAdapter> adapter;
-        auto result = m_Factory->EnumAdapters(i, &adapter);
-        if(result == DXGI_ERROR_NOT_FOUND) break;
-        AssertOK(result);
-        adapters.push_back(adapter);
-    }
-    for (auto adapter : adapters)
+    for (auto adapter : GetAdapters(m_Factory.Get()))
     {
         DXGI_ADAPTER_DESC adapterDesc;
         AssertOK(adapter->GetDesc(&adapterDesc));
         std::cout << WideToMultiByte(adapterDesc.Description).data() << std::endl;
     }
+
+    AssertOK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 }
 
 Graphic::~Graphic()
 {
     CoUninitialize();
+}
+
+std::vector<ComPtr<IDXGIAdapter>> Graphic::GetAdapters(IDXGIFactory7 *factory)
+{
+    auto adapters = std::vector<ComPtr<IDXGIAdapter>>();
+    for (auto i = 0; ; i++)
+    {
+        ComPtr<IDXGIAdapter> adapter;
+        auto result = factory->EnumAdapters(i, &adapter);
+        if(result == DXGI_ERROR_NOT_FOUND) break;
+        AssertOK(result);
+        adapters.push_back(adapter);
+    }
+    return adapters;
 }

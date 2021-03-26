@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <vector>
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -19,4 +20,6 @@ private:
 public:
     Graphic(HWND window);
     ~Graphic();
+private:
+    static std::vector<ComPtr<IDXGIAdapter>> GetAdapters(IDXGIFactory7 *factory);
 };
