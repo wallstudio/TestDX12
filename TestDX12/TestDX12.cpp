@@ -1,6 +1,7 @@
 #include <iostream>
 #include <windows.h>
 #include <vector>
+#include <memory>
 #include "Window.h"
 #include "StringUtility.h"
 
@@ -20,7 +21,8 @@ int CALLBACK WinMain(
 	SetConsoleOutputCP(CP_UTF8);
 	try
 	{
-		auto result = Window().Run();
+		auto window = std::unique_ptr<Window>(new Window());
+		Window::WaitApplicationQuit();
 		return 0;
 	}
 	catch(std::exception e)

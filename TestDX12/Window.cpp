@@ -8,19 +8,23 @@
 
 Window::Window()
 {
-    m_AppHandle = GetModuleHandle(NULL);
+    m_ModuleHandle = GetModuleHandle(NULL);
 
     WNDCLASSEX windowClass = { 0 };
     windowClass.cbSize = sizeof(WNDCLASSEX);
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
-    windowClass.lpfnWndProc = Window::WindowProcess;
+    windowClass.lpfnWndProc = [](HWND window, UINT message, WPARAM param, LPARAM longParam)-> LRESULT
+    {
+        const auto _this = reinterpret_cast<Window *>(GetWindowLongPtr(window, GWLP_USERDATA));
+        return nullptr != _this ? _this->WindowProcess(message, param, longParam) : DefWindowProc(window, message, param, longParam);
+    };
     windowClass.cbClsExtra = 0;
     windowClass.cbWndExtra = 0;
-    windowClass.hInstance = m_AppHandle;
-    windowClass.hIcon = LoadIcon(m_AppHandle, MAKEINTRESOURCE(APP_ICON));
-    windowClass.hIconSm = LoadIcon(m_AppHandle, MAKEINTRESOURCE(APP_ICON));
-    windowClass.hCursor = LoadCursor(m_AppHandle, IDC_ARROW);
-    windowClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    windowClass.hInstance = m_ModuleHandle;
+    windowClass.hIcon = LoadIcon(m_ModuleHandle, MAKEINTRESOURCE(APP_ICON));
+    windowClass.hIconSm = LoadIcon(m_ModuleHandle, MAKEINTRESOURCE(APP_ICON));
+    windowClass.hCursor = LoadCursor(m_ModuleHandle, IDC_ARROW);
+    windowClass.hbrBackground = reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
     windowClass.lpszMenuName = NULL;
     windowClass.lpszClassName = TEXT("MY_WINDOW_CLASS");
     if(!RegisterClassEx(&windowClass))
@@ -28,7 +32,9 @@ Window::Window()
         throw std::exception("Failed register window class怪.");
     }
     
-    m_Window = CreateWindow(
+    // 制御が戻るまでに次のメッセージが消費される
+    // WM_GETMINMAXINFO, WM_NCCREA, WM_NCCALCSIZE, WM_CREATE
+    m_WindowHandle = CreateWindow(
         windowClass.lpszClassName,
         TEXT("TestDX12"),
         WS_OVERLAPPEDWINDOW,
@@ -38,43 +44,39 @@ Window::Window()
         CW_USEDEFAULT,
         NULL,
         NULL,
-        m_AppHandle,
+        m_ModuleHandle,
         NULL);
 
-    SetWindowLong(m_Window, GWLP_USERDATA, reinterpret_cast<long>(this));
+    SetWindowLongPtr(m_WindowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
-    m_Graphic.reset(new Graphic(m_Window));
+    m_Graphic = std::unique_ptr<Graphic>(new Graphic(m_WindowHandle));
+
+    ShowWindow(m_WindowHandle, SW_SHOW);
 }
 
-Window::~Window()
-{
-}
+Window::~Window() {}
 
-WPARAM Window::Run()
+LRESULT Window::WindowProcess(UINT message, WPARAM param, LPARAM longParam)
 {
-    ShowWindow(m_Window, SW_SHOW);
-    
-    MSG message;
-    while (GetMessage(&message, NULL, 0, 0))
-    {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
-    }
-    
-    return message.wParam;
-}
-
-LRESULT CALLBACK Window::WindowProcess(HWND window, UINT message, WPARAM param, LPARAM longParam)
-{
-    auto _this = reinterpret_cast<Window *>(GetWindowLong(window, GWLP_USERDATA));
     switch(message)
     {
         case WM_DESTROY:
             PostQuitMessage(0);
             break;
         default:
-            return DefWindowProc(window, message, param, longParam);
+            DefWindowProc(m_WindowHandle, message, param, longParam);
+            break;
     }
-
     return 0;
+}
+
+MSG Window::WaitApplicationQuit()
+{
+    MSG message;
+    while (GetMessage(&message, NULL, 0, 0))
+    {
+        TranslateMessage(&message);
+        DispatchMessage(&message);
+    }
+    return message;
 }
