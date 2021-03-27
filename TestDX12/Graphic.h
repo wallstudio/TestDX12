@@ -2,6 +2,8 @@
 
 #include <Windows.h>
 #include <vector>
+#include <string>
+#include <exception>
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -10,6 +12,16 @@
 #pragma comment(lib, "dxgi.lib")
 
 using namespace Microsoft::WRL;
+
+#define AssertOK(operation) \
+    do { \
+        const auto __result = operation; \
+        if(FAILED(__result)) { \
+            auto __message = std::string("Failed\n\n" #operation "\n\n"); \
+            __message += ToMultiByte(ToTString(__result).data()); \
+            throw std::exception(__message.data()); \
+        } \
+    } while(false)
 
 class Graphic
 {

@@ -38,3 +38,14 @@ std::tstring ToTString(const char *source) { return std::string(source); }
 std::string ToMultiByte(const TCHAR *source) { return ToTString(source); }
 std::wstring ToWide(const TCHAR *source) { return MultiByteToWide(source); }
 #endif
+
+
+std::tstring ToTString(const HRESULT result)
+{
+    LPTSTR buffer = NULL;
+    const auto flag = FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM;
+    FormatMessage(flag, NULL, result, MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), (LPWSTR)&buffer, 0, NULL);
+    const auto message = ToTString(buffer);
+    LocalFree(buffer);
+    return message;
+}

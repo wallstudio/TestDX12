@@ -19,3 +19,5 @@ std::tstring ToTString(const WCHAR *source);
 std::tstring ToTString(const char *source);
 std::string ToMultiByte(const TCHAR *source);
 std::wstring ToWide(const TCHAR *source);
+
+std::tstring ToTString(const HRESULT result);

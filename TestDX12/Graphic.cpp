@@ -9,8 +9,6 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 
-#define AssertOK(result) do { if(FAILED(result))throw new std::exception("F" #result); } while(false)
-
 using namespace Microsoft::WRL;
 
 Graphic::Graphic(HWND window)

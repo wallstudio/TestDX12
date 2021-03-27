@@ -31,5 +31,9 @@ int CALLBACK WinMain(
 		MessageBox(NULL, ToTString(e.what()).data(), TEXT("Error"), MB_OK);
 		return 1;
 	}
+	catch(...)
+	{
+		MessageBox(NULL, TEXT("Unknown"), TEXT("Error"), MB_OK);
+	}
 
 }
