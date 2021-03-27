@@ -13,6 +13,7 @@ private:
 public:
     Window();
     ~Window();
+    void Update();
     static MSG WaitApplicationQuit();
 private:
     // static LRESULT CALLBACK GlobalWindowProcess(HWND window, UINT message, WPARAM param, LPARAM longParam);

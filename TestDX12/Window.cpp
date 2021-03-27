@@ -60,6 +60,9 @@ LRESULT Window::WindowProcess(UINT message, WPARAM param, LPARAM longParam)
 {
     switch(message)
     {
+        case WM_SHOWWINDOW:
+            m_Graphic->Rendring();
+            break;
         case WM_DESTROY:
             PostQuitMessage(0);
             break;
@@ -69,6 +72,8 @@ LRESULT Window::WindowProcess(UINT message, WPARAM param, LPARAM longParam)
     }
     return 0;
 }
+
+void Window::Update() { m_Graphic->Rendring(); }
 
 MSG Window::WaitApplicationQuit()
 {

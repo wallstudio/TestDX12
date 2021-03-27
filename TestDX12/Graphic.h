@@ -26,12 +26,22 @@ using namespace Microsoft::WRL;
 class Graphic
 {
 private:
+    HWND m_WindowHandle;
     ComPtr<ID3D12Device8> m_Device;
     ComPtr<IDXGIFactory7> m_Factory;
-    ComPtr<IDXGISwapChain4> m_SwapChain;
+
+    ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
+    ComPtr<ID3D12GraphicsCommandList> m_CommandList;
+    ComPtr<ID3D12CommandQueue> m_CommandQueue;
+    ComPtr<ID3D12Fence> m_Fence;
+    
+    ComPtr<IDXGISwapChain3> m_SwapChain;
+    ComPtr<ID3D12DescriptorHeap> m_SwapChainRenderTargetsHeap;
+    std::vector<std::tuple<ComPtr<ID3D12Resource>, D3D12_CPU_DESCRIPTOR_HANDLE>> m_SwapChainRenderTargetDescriptorPointers = std::vector<std::tuple<ComPtr<ID3D12Resource>, D3D12_CPU_DESCRIPTOR_HANDLE>>();
 public:
     Graphic(HWND window);
     ~Graphic();
+    UINT64 Rendring();
 private:
     static std::vector<ComPtr<IDXGIAdapter>> GetAdapters(IDXGIFactory7 *factory);
 };
