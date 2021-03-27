@@ -23,6 +23,12 @@ using namespace Microsoft::WRL;
         } \
     } while(false)
 
+struct Resouce
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE Handle;
+    ComPtr<ID3D12Resource> Resource;
+};
+
 class Graphic
 {
 private:
@@ -37,7 +43,7 @@ private:
     
     ComPtr<IDXGISwapChain3> m_SwapChain;
     ComPtr<ID3D12DescriptorHeap> m_SwapChainRenderTargetsHeap;
-    std::vector<std::tuple<ComPtr<ID3D12Resource>, D3D12_CPU_DESCRIPTOR_HANDLE>> m_SwapChainRenderTargetDescriptorPointers = std::vector<std::tuple<ComPtr<ID3D12Resource>, D3D12_CPU_DESCRIPTOR_HANDLE>>();
+    std::vector<Resouce> m_SwapChainRenderTargets = std::vector<Resouce>();
 public:
     Graphic(HWND window);
     ~Graphic();

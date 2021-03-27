@@ -36,15 +36,14 @@ Graphic::Graphic(HWND window)
 
     AssertOK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 
-    const auto commandListType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;
-    HRESULT r;
-    AssertOK(r = m_Device->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&m_CommandAllocator)));
-    AssertOK(m_Device->CreateCommandList(0, commandListType, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
+    AssertOK(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator)));
+    AssertOK(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
+    AssertOK(m_CommandList->Close());
     D3D12_COMMAND_QUEUE_DESC commandQueueCreateDesc = {};
     commandQueueCreateDesc.Flags = D3D12_COMMAND_QUEUE_FLAGS::D3D12_COMMAND_QUEUE_FLAG_NONE;
     commandQueueCreateDesc.NodeMask = 0;
     commandQueueCreateDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY::D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-    commandQueueCreateDesc.Type = commandListType;
+    commandQueueCreateDesc.Type = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;
     AssertOK(m_Device->CreateCommandQueue(&commandQueueCreateDesc, IID_PPV_ARGS(&m_CommandQueue)));
 
     RECT windowRect = {};
@@ -81,7 +80,7 @@ Graphic::Graphic(HWND window)
         AssertOK(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&resource)));
         m_Device->CreateRenderTargetView(resource.Get(), nullptr, currentHandle);
         if(nullptr == resource.Get()) throw std::exception("Failed create RenderTargetView");
-        m_SwapChainRenderTargetDescriptorPointers.push_back(std::make_tuple(resource, currentHandle));
+        m_SwapChainRenderTargets.push_back({ currentHandle, resource });
     }
     
     AssertOK(m_Device->CreateFence(~0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence)));
@@ -95,16 +94,29 @@ Graphic::~Graphic()
 UINT64 Graphic::Rendring()
 {
     auto frameNumberForFence = m_Fence->GetCompletedValue() + 1;
-
-    auto currentSwapChainRenderTarget = m_SwapChainRenderTargetDescriptorPointers[m_SwapChain->GetCurrentBackBufferIndex()];
-    m_CommandList->OMSetRenderTargets(1, std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 1>({std::get<D3D12_CPU_DESCRIPTOR_HANDLE>(currentSwapChainRenderTarget)}).data(), false, nullptr);
-    m_CommandList->ClearRenderTargetView(std::get<D3D12_CPU_DESCRIPTOR_HANDLE>(currentSwapChainRenderTarget), std::array<FLOAT, 4>({ 1.0f, 0.0f, 0.0f, 1.0f }).data(), 0, nullptr);
-    AssertOK(m_CommandList->Close());
-    auto commandLists = std::vector<ID3D12CommandList*>({ m_CommandList.Get() });
-    m_CommandQueue->ExecuteCommandLists(1, commandLists.data());
-
     AssertOK(m_CommandAllocator->Reset());
     AssertOK(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
+
+    auto currentSwapChainRenderTarget = m_SwapChainRenderTargets[m_SwapChain->GetCurrentBackBufferIndex()];
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE::D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAGS::D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition = {};
+    barrier.Transition.pResource = currentSwapChainRenderTarget.Resource.Get();
+    barrier.Transition.Subresource = 0;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET;
+    m_CommandList->ResourceBarrier(1, &barrier);
+
+    m_CommandList->OMSetRenderTargets(1, std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 1>({currentSwapChainRenderTarget.Handle}).data(), false, nullptr);
+    m_CommandList->ClearRenderTargetView(currentSwapChainRenderTarget.Handle, std::array<FLOAT, 4>({ 1.0f, 0.0f, 0.0f, 1.0f }).data(), 0, nullptr);
+
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT;
+    m_CommandList->ResourceBarrier(1, &barrier);
+    
+    AssertOK(m_CommandList->Close());
+    m_CommandQueue->ExecuteCommandLists(1, std::vector<ID3D12CommandList*>({ m_CommandList.Get() }).data());
 
     AssertOK(m_SwapChain->Present(DXGI_SWAP_EFFECT_SEQUENTIAL, 0 /* DXGI_PRESENT */));
     AssertOK(m_CommandQueue->Signal(m_Fence.Get(), frameNumberForFence));
