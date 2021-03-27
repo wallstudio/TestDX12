@@ -60,7 +60,7 @@ LRESULT Window::WindowProcess(UINT message, WPARAM param, LPARAM longParam)
 {
     switch(message)
     {
-        case WM_SHOWWINDOW:
+        case WM_PAINT:
             m_Graphic->Rendring();
             break;
         case WM_DESTROY:

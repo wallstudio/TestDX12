@@ -97,7 +97,7 @@ UINT64 Graphic::Rendring()
     AssertOK(m_CommandAllocator->Reset());
     AssertOK(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
 
-    auto currentSwapChainRenderTarget = m_SwapChainRenderTargets[m_SwapChain->GetCurrentBackBufferIndex()];
+    const auto currentSwapChainRenderTarget = m_SwapChainRenderTargets[m_SwapChain->GetCurrentBackBufferIndex()];
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE::D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAGS::D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -109,7 +109,7 @@ UINT64 Graphic::Rendring()
     m_CommandList->ResourceBarrier(1, &barrier);
 
     m_CommandList->OMSetRenderTargets(1, std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 1>({currentSwapChainRenderTarget.Handle}).data(), false, nullptr);
-    m_CommandList->ClearRenderTargetView(currentSwapChainRenderTarget.Handle, std::array<FLOAT, 4>({ 1.0f, 0.0f, 0.0f, 1.0f }).data(), 0, nullptr);
+    m_CommandList->ClearRenderTargetView(currentSwapChainRenderTarget.Handle, std::array<FLOAT, 4>({ 1.0f * (frameNumberForFence % 256) / 256.0f, 0.0f, 0.0f, 1.0f }).data(), 0, nullptr);
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT;
@@ -121,7 +121,13 @@ UINT64 Graphic::Rendring()
     AssertOK(m_SwapChain->Present(DXGI_SWAP_EFFECT_SEQUENTIAL, 0 /* DXGI_PRESENT */));
     AssertOK(m_CommandQueue->Signal(m_Fence.Get(), frameNumberForFence));
 
-    while (m_Fence->GetCompletedValue() != frameNumberForFence);
+    if (m_Fence->GetCompletedValue() != frameNumberForFence)
+    {
+        auto renderFinishEvent = CreateEvent(nullptr, false, false, nullptr);
+        m_Fence->SetEventOnCompletion(frameNumberForFence, renderFinishEvent);
+        WaitForSingleObject(renderFinishEvent, INFINITE);
+        CloseHandle(renderFinishEvent);
+    }
     return frameNumberForFence;
 }
 
