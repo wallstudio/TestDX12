@@ -1,22 +1,58 @@
 #include <windows.h>
 #include <iostream>
+#include <exception>
+#include <sstream>
 #include "Window.h"
 #include "Resource.h"
 #include "winres.h"
 #include "Graphic.h"
+#include "StringUtility.h"
 
 
 Window::Window()
 {
     m_ModuleHandle = GetModuleHandle(NULL);
-
+    
     WNDCLASSEX windowClass = { 0 };
     windowClass.cbSize = sizeof(WNDCLASSEX);
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = [](HWND window, UINT message, WPARAM param, LPARAM longParam)-> LRESULT
     {
         const auto _this = reinterpret_cast<Window *>(GetWindowLongPtr(window, GWLP_USERDATA));
-        return nullptr != _this ? _this->WindowProcess(message, param, longParam) : DefWindowProc(window, message, param, longParam);
+        if(nullptr != _this)
+        {
+            try
+            {
+                unsigned int seCode = 0;
+                LRESULT result = 0;
+                std::function<void()> callback = [&]() -> void { result = _this->WindowProcess(message, param, longParam); };
+                HandleStructuredException(&callback, seCode);
+                if(seCode != 0)
+                {
+                    // 多分この辺（DX12のはどこにあるのかわからない）
+                    // https://github.com/Alexpux/mingw-w64/blob/master/mingw-w64-headers/include/minwinbase.h#L284
+                    // https://github.com/wine-mirror/wine/blob/master/include/winnt.h#L611
+                    // https://github.com/apitrace/dxsdk/blob/master/Include/d3d9.h#L1981 （これはDX9多分違う）
+                    std::stringstream sstream;
+                    sstream << "Structured Exception: " << std::hex << seCode;
+                    throw std::exception(sstream.str().data());
+                }
+                return result;
+            }
+            catch(std::exception e)
+            {
+                std::cout << e.what() << std::endl;
+                MessageBox(NULL, ToTString(e.what()).data(), TEXT("Exception"), MB_OK);
+                DestroyWindow(window);
+            }
+            catch(...)
+            {
+                std::cout << "Unknown Error" << std::endl;
+                MessageBox(NULL, TEXT("Unknown Error"), TEXT("Exception"), MB_OK);
+                DestroyWindow(window);
+            }
+        }
+        return DefWindowProc(window, message, param, longParam);
     };
     windowClass.cbClsExtra = 0;
     windowClass.cbWndExtra = 0;
@@ -54,8 +90,6 @@ Window::Window()
     ShowWindow(m_WindowHandle, SW_SHOW);
 }
 
-Window::~Window() {}
-
 LRESULT Window::WindowProcess(UINT message, WPARAM param, LPARAM longParam)
 {
     switch(message)
@@ -67,13 +101,10 @@ LRESULT Window::WindowProcess(UINT message, WPARAM param, LPARAM longParam)
             PostQuitMessage(0);
             break;
         default:
-            DefWindowProc(m_WindowHandle, message, param, longParam);
             break;
     }
-    return 0;
+    return DefWindowProc(m_WindowHandle, message, param, longParam);
 }
-
-void Window::Update() { m_Graphic->Rendring(); }
 
 MSG Window::WaitApplicationQuit()
 {
@@ -84,4 +115,10 @@ MSG Window::WaitApplicationQuit()
         DispatchMessage(&message);
     }
     return message;
+}
+
+void HandleStructuredException(std::function<void()> *callback, unsigned int &code)
+{
+    __try { callback->operator()(); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { code = GetExceptionCode(); }
 }

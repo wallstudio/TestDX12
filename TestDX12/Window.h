@@ -2,7 +2,9 @@
 
 #include <windows.h>
 #include <memory>
+#include <exception>
 #include "Graphic.h"
+#include <functional>
 
 class Window
 {
@@ -12,10 +14,9 @@ private:
     std::unique_ptr<Graphic> m_Graphic;
 public:
     Window();
-    ~Window();
-    void Update();
     static MSG WaitApplicationQuit();
 private:
-    // static LRESULT CALLBACK GlobalWindowProcess(HWND window, UINT message, WPARAM param, LPARAM longParam);
     LRESULT WindowProcess(UINT message, WPARAM param, LPARAM longParam);
 };
+
+void HandleStructuredException(std::function<void()> *callback, unsigned int &code);
