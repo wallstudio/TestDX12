@@ -8,11 +8,15 @@
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <DirectXMath.h>
+#include <d3dcompiler.h>
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
 
 using namespace Microsoft::WRL;
+using namespace DirectX; // Math
 
 Graphic::Graphic(HWND window)
 {
@@ -110,6 +114,141 @@ UINT64 Graphic::Rendring()
 
     m_CommandList->OMSetRenderTargets(1, std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 1>({currentSwapChainRenderTarget.Handle}).data(), false, nullptr);
     m_CommandList->ClearRenderTargetView(currentSwapChainRenderTarget.Handle, std::array<FLOAT, 4>({ 1.0f * (frameNumberForFence % 256) / 256.0f, 0.0f, 0.0f, 1.0f }).data(), 0, nullptr);
+
+    RECT windowRect = {};
+    GetClientRect(m_WindowHandle, &windowRect);
+    D3D12_VIEWPORT viewPort = {};
+    viewPort.TopLeftX = 0;
+    viewPort.TopLeftY = 0;
+    viewPort.Width = windowRect.right - windowRect.left;
+    viewPort.Height = windowRect.bottom - windowRect.top;
+    viewPort.MinDepth = 1.0f;
+    viewPort.MaxDepth = 1.1f;
+    m_CommandList->RSSetViewports(1, &viewPort);
+    D3D12_RECT scissor = {};
+    scissor.left = 0;
+    scissor.top = 0;
+    scissor.right = windowRect.right - windowRect.left;
+    scissor.bottom = windowRect.bottom - windowRect.top;
+    m_CommandList->RSSetScissorRects(1, &scissor);
+
+    ComPtr<ID3D12Resource> verteciesResource;
+    auto vertecies = std::vector<XMFLOAT3>(
+    {
+        { 1.0f * (frameNumberForFence % 256) / 256.0f, -1.0f, 0.0f },
+        { -1.0f, 1.0f, 0.0f },
+        { 1.0f, -1.0f, 0.0f },
+    });
+    D3D12_HEAP_PROPERTIES verteciesHeapProps = {};
+    verteciesHeapProps.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD;
+    verteciesHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    verteciesHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
+    verteciesHeapProps.CreationNodeMask = 0;
+    verteciesHeapProps.VisibleNodeMask = 0;
+    D3D12_RESOURCE_DESC verteciesResouceHeap = {};
+    verteciesResouceHeap.Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER;
+    verteciesResouceHeap.Alignment = 0;
+    verteciesResouceHeap.Width = vertecies.size() * sizeof(XMFLOAT3);
+    verteciesResouceHeap.Height = 1;
+    verteciesResouceHeap.DepthOrArraySize = 1;
+    verteciesResouceHeap.MipLevels = 1;
+    verteciesResouceHeap.Format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+    verteciesResouceHeap.SampleDesc = {};
+    verteciesResouceHeap.SampleDesc.Count = 1;
+    verteciesResouceHeap.SampleDesc.Quality = 0;
+    verteciesResouceHeap.Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    verteciesResouceHeap.Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE;
+    AssertOK(m_Device->CreateCommittedResource(&verteciesHeapProps, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &verteciesResouceHeap, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&verteciesResource)));
+    void *verteciesMapping;
+    AssertOK(verteciesResource->Map(0, nullptr, &verteciesMapping));
+    memcpy(verteciesMapping, vertecies.data(), vertecies.size() * sizeof(XMFLOAT3));
+    D3D12_VERTEX_BUFFER_VIEW verteciesView = {};
+    verteciesView.BufferLocation = verteciesResource->GetGPUVirtualAddress();
+    verteciesView.SizeInBytes = vertecies.size() * sizeof(XMFLOAT3);
+    verteciesView.StrideInBytes = sizeof(XMFLOAT3);
+    m_CommandList->IASetVertexBuffers(0, 1, &verteciesView);
+    m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    ComPtr<ID3DBlob> vertexShader, pixelShader, shaderCompileError;
+    try
+    {
+        std::string vertexShaderSourceCode = "float4 main(float4 pos : POSITION) : SV_POSITION { return pos; }";
+        AssertOK(D3DCompile(
+            vertexShaderSourceCode.data(), vertexShaderSourceCode.size(), "VS", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+            "main", "vs_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &vertexShader, &shaderCompileError));
+        std::string pixelShaderSourceCode = "float4 main(float4 pos : SV_POSITION) : SV_TARGET { return float4(1,1,1,1); }";
+        AssertOK(D3DCompile(
+            pixelShaderSourceCode.data(), pixelShaderSourceCode.size(), "VS", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+            "main", "ps_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &shaderCompileError));
+    }
+    catch(std::exception ex)
+    {
+        if(shaderCompileError.Get() != nullptr) throw std::exception(reinterpret_cast<char *>(shaderCompileError->GetBufferPointer()));
+        else throw;
+    }
+
+    ComPtr<ID3D12RootSignature> rootSignature;
+    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAGS::D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    ComPtr<ID3DBlob> rootSignatureBlob, rootSignatureSerializerError;
+    try
+    {
+        AssertOK(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION::D3D_ROOT_SIGNATURE_VERSION_1_0, &rootSignatureBlob, &rootSignatureSerializerError));
+    }
+    catch(std::exception ex)
+    {
+        if(rootSignatureSerializerError.Get() != nullptr) throw std::exception(reinterpret_cast<char *>(rootSignatureSerializerError->GetBufferPointer()));
+        throw;
+    }
+    AssertOK(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
+
+    ComPtr<ID3D12PipelineState> piplineState;
+    piplineStates.push_back(piplineState); // TODO: 適当なタイミングで解放
+    D3D12_INPUT_ELEMENT_DESC inputElementDesc = {};
+    inputElementDesc.SemanticName = "POSITION";
+    inputElementDesc.SemanticIndex = 0;
+    inputElementDesc.Format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
+    inputElementDesc.InputSlot = 0;
+    inputElementDesc.AlignedByteOffset = 0;
+    inputElementDesc.InputSlotClass = D3D12_INPUT_CLASSIFICATION::D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+    inputElementDesc.InstanceDataStepRate = 0;
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC piplineStateDesc = {};
+    piplineStateDesc.pRootSignature = rootSignature.Get();
+    piplineStateDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
+    piplineStateDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+    piplineStateDesc.DS = {};
+    piplineStateDesc.HS = {};
+    piplineStateDesc.GS = {};
+    piplineStateDesc.StreamOutput = {};
+    piplineStateDesc.BlendState = {};
+    piplineStateDesc.BlendState.AlphaToCoverageEnable = false;
+    piplineStateDesc.BlendState.IndependentBlendEnable = false;
+    piplineStateDesc.BlendState.RenderTarget[0].BlendEnable = false;
+    piplineStateDesc.BlendState.RenderTarget[0].LogicOpEnable = false;
+    piplineStateDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE::D3D12_COLOR_WRITE_ENABLE_ALL;
+    piplineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+    piplineStateDesc.RasterizerState = {};
+    piplineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE::D3D12_FILL_MODE_SOLID;
+    piplineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_NONE;
+    piplineStateDesc.RasterizerState.FrontCounterClockwise = true;
+    piplineStateDesc.RasterizerState.DepthClipEnable = true;
+    piplineStateDesc.DepthStencilState = {};
+    piplineStateDesc.InputLayout = {};
+    piplineStateDesc.InputLayout.pInputElementDescs = &inputElementDesc;
+    piplineStateDesc.InputLayout.NumElements = 1;
+    piplineStateDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE::D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+    piplineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    piplineStateDesc.NumRenderTargets = 1;
+    piplineStateDesc.RTVFormats[0] = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+    piplineStateDesc.DSVFormat = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+    piplineStateDesc.SampleDesc = { 1, 0 };
+    piplineStateDesc.NodeMask = 0;
+    piplineStateDesc.CachedPSO = {};
+    piplineStateDesc.Flags = D3D12_PIPELINE_STATE_FLAGS::D3D12_PIPELINE_STATE_FLAG_NONE;
+    AssertOK(m_Device->CreateGraphicsPipelineState(&piplineStateDesc, IID_PPV_ARGS(&piplineState)));
+    m_CommandList->SetPipelineState(piplineState.Get());
+    m_CommandList->SetGraphicsRootSignature(rootSignature.Get());
+    m_CommandList->DrawInstanced(vertecies.size(), 1, 0, 0);
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT;

@@ -7,11 +7,13 @@
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <DirectXMath.h>
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 
 using namespace Microsoft::WRL;
+using namespace DirectX;
 
 #define AssertOK(operation) \
     do { \
@@ -44,6 +46,8 @@ private:
     ComPtr<IDXGISwapChain3> m_SwapChain;
     ComPtr<ID3D12DescriptorHeap> m_SwapChainRenderTargetsHeap;
     std::vector<Resouce> m_SwapChainRenderTargets = std::vector<Resouce>();
+
+    std::vector<ComPtr<ID3D12PipelineState>> piplineStates;
 public:
     Graphic(HWND window);
     ~Graphic();
