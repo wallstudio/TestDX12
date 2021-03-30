@@ -16,6 +16,7 @@ using namespace DirectX;
 
 #include "StringUtility.h"
 #include "Mesh.h"
+#include "Shader.h"
 
 
 struct Resouce
@@ -41,6 +42,8 @@ private:
     std::vector<Resouce> m_SwapChainRenderTargets = std::vector<Resouce>();
 
     std::shared_ptr<Mesh> m_Mesh;
+    std::shared_ptr<Shader> m_VertexShader;
+    std::shared_ptr<Shader> m_PixelShader;
 
     std::vector<ComPtr<ID3D12PipelineState>> piplineStates;
 public:

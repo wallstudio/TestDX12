@@ -7,7 +7,6 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <DirectXMath.h>
-#include <d3dcompiler.h>
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -94,6 +93,9 @@ Graphic::Graphic(HWND window)
         { -1.0f, +1.0f, +0.0f },
         { +1.0f, -1.0f, +0.0f },
     })));
+    
+    m_VertexShader.reset(new Shader("vs_5_0", "float4 main(float4 pos : POSITION) : SV_POSITION { return pos; }"));
+    m_PixelShader.reset(new Shader("ps_5_0", "float4 main(float4 pos : SV_POSITION) : SV_TARGET { return float4(1,1,1,1); }"));
 }
 
 Graphic::~Graphic()
@@ -141,23 +143,7 @@ UINT64 Graphic::Rendring()
     m_CommandList->IASetVertexBuffers(0, 1, m_Mesh->View());
     m_CommandList->IASetPrimitiveTopology(m_Mesh->Topology());
 
-    ComPtr<ID3DBlob> vertexShader, pixelShader, shaderCompileError;
-    try
-    {
-        std::string vertexShaderSourceCode = "float4 main(float4 pos : POSITION) : SV_POSITION { return pos; }";
-        AssertOK(D3DCompile(
-            vertexShaderSourceCode.data(), vertexShaderSourceCode.size(), "VS", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-            "main", "vs_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &vertexShader, &shaderCompileError));
-        std::string pixelShaderSourceCode = "float4 main(float4 pos : SV_POSITION) : SV_TARGET { return float4(1,1,1,1); }";
-        AssertOK(D3DCompile(
-            pixelShaderSourceCode.data(), pixelShaderSourceCode.size(), "VS", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-            "main", "ps_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &shaderCompileError));
-    }
-    catch(std::exception ex)
-    {
-        if(shaderCompileError.Get() != nullptr) throw std::exception(reinterpret_cast<char *>(shaderCompileError->GetBufferPointer()));
-        else throw;
-    }
+    
 
     ComPtr<ID3D12RootSignature> rootSignature;
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
@@ -176,18 +162,11 @@ UINT64 Graphic::Rendring()
 
     ComPtr<ID3D12PipelineState> piplineState;
     piplineStates.push_back(piplineState); // TODO: 適当なタイミングで解放
-    D3D12_INPUT_ELEMENT_DESC inputElementDesc = {};
-    inputElementDesc.SemanticName = "POSITION";
-    inputElementDesc.SemanticIndex = 0;
-    inputElementDesc.Format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
-    inputElementDesc.InputSlot = 0;
-    inputElementDesc.AlignedByteOffset = 0;
-    inputElementDesc.InputSlotClass = D3D12_INPUT_CLASSIFICATION::D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-    inputElementDesc.InstanceDataStepRate = 0;
+    
     D3D12_GRAPHICS_PIPELINE_STATE_DESC piplineStateDesc = {};
     piplineStateDesc.pRootSignature = rootSignature.Get();
-    piplineStateDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
-    piplineStateDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+    piplineStateDesc.VS = { m_VertexShader->GetBufferPointer(), m_VertexShader->GetBufferSize() };
+    piplineStateDesc.PS = { m_PixelShader->GetBufferPointer(), m_PixelShader->GetBufferSize() };
     piplineStateDesc.DS = {};
     piplineStateDesc.HS = {};
     piplineStateDesc.GS = {};
@@ -206,7 +185,7 @@ UINT64 Graphic::Rendring()
     piplineStateDesc.RasterizerState.DepthClipEnable = true;
     piplineStateDesc.DepthStencilState = {};
     piplineStateDesc.InputLayout = {};
-    piplineStateDesc.InputLayout.pInputElementDescs = &inputElementDesc;
+    piplineStateDesc.InputLayout.pInputElementDescs = m_Mesh->InputElements();
     piplineStateDesc.InputLayout.NumElements = 1;
     piplineStateDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE::D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
     piplineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
