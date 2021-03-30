@@ -25,10 +25,12 @@ private:
     D3D12_HEAP_PROPERTIES m_HeapProp = {};
     D3D12_RESOURCE_DESC m_ResourceDesc = {};
     D3D12_VERTEX_BUFFER_VIEW m_View = {};
+    vector<D3D12_INPUT_ELEMENT_DESC> m_InputElementDescs;
 public:
     UINT Size() { return m_Size; }
     D3D12_VERTEX_BUFFER_VIEW *const View() { return &m_View; }
     D3D_PRIMITIVE_TOPOLOGY Topology() { return D3D_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; }
+    D3D12_INPUT_ELEMENT_DESC* InputElements() { return m_InputElementDescs.data(); }
 public:
     Mesh(const ComPtr<ID3D12Device8> device, vector<XMFLOAT3> vertecies)
     {
@@ -64,5 +66,15 @@ public:
         m_View.BufferLocation = m_Resource->GetGPUVirtualAddress();
         m_View.SizeInBytes = m_Size * sizeof(XMFLOAT3);
         m_View.StrideInBytes = sizeof(XMFLOAT3);
+
+        D3D12_INPUT_ELEMENT_DESC inputElementDesc = {};
+        inputElementDesc.SemanticName = "POSITION";
+        inputElementDesc.SemanticIndex = 0;
+        inputElementDesc.Format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
+        inputElementDesc.InputSlot = 0;
+        inputElementDesc.AlignedByteOffset = 0;
+        inputElementDesc.InputSlotClass = D3D12_INPUT_CLASSIFICATION::D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+        inputElementDesc.InstanceDataStepRate = 0;
+        m_InputElementDescs.push_back(inputElementDesc);
     }
 };

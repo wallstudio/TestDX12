@@ -140,7 +140,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Graphic.cpp" />
-    <ClCompile Include="StringUtility.cpp" />
     <ClCompile Include="TestDX12.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
