@@ -3,8 +3,6 @@
 #include <array>
 #include <tuple>
 #include <chrono>
-#include "Graphic.h"
-#include "StringUtility.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -14,9 +12,10 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
-
 using namespace Microsoft::WRL;
-using namespace DirectX; // Math
+using namespace DirectX;
+
+#include "Graphic.h"
 
 Graphic::Graphic(HWND window)
 {
@@ -88,6 +87,13 @@ Graphic::Graphic(HWND window)
     }
     
     AssertOK(m_Device->CreateFence(~0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence)));
+
+    m_Mesh.reset(new Mesh(m_Device, std::vector<XMFLOAT3>(
+    {
+        { -1.0f, -1.0f, +0.0f },
+        { -1.0f, +1.0f, +0.0f },
+        { +1.0f, -1.0f, +0.0f },
+    })));
 }
 
 Graphic::~Graphic()
@@ -132,42 +138,8 @@ UINT64 Graphic::Rendring()
     scissor.bottom = windowRect.bottom - windowRect.top;
     m_CommandList->RSSetScissorRects(1, &scissor);
 
-    ComPtr<ID3D12Resource> verteciesResource;
-    auto vertecies = std::vector<XMFLOAT3>(
-    {
-        { 1.0f * (frameNumberForFence % 256) / 256.0f, -1.0f, 0.0f },
-        { -1.0f, 1.0f, 0.0f },
-        { 1.0f, -1.0f, 0.0f },
-    });
-    D3D12_HEAP_PROPERTIES verteciesHeapProps = {};
-    verteciesHeapProps.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD;
-    verteciesHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    verteciesHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
-    verteciesHeapProps.CreationNodeMask = 0;
-    verteciesHeapProps.VisibleNodeMask = 0;
-    D3D12_RESOURCE_DESC verteciesResouceHeap = {};
-    verteciesResouceHeap.Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER;
-    verteciesResouceHeap.Alignment = 0;
-    verteciesResouceHeap.Width = vertecies.size() * sizeof(XMFLOAT3);
-    verteciesResouceHeap.Height = 1;
-    verteciesResouceHeap.DepthOrArraySize = 1;
-    verteciesResouceHeap.MipLevels = 1;
-    verteciesResouceHeap.Format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
-    verteciesResouceHeap.SampleDesc = {};
-    verteciesResouceHeap.SampleDesc.Count = 1;
-    verteciesResouceHeap.SampleDesc.Quality = 0;
-    verteciesResouceHeap.Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    verteciesResouceHeap.Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE;
-    AssertOK(m_Device->CreateCommittedResource(&verteciesHeapProps, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &verteciesResouceHeap, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&verteciesResource)));
-    void *verteciesMapping;
-    AssertOK(verteciesResource->Map(0, nullptr, &verteciesMapping));
-    memcpy(verteciesMapping, vertecies.data(), vertecies.size() * sizeof(XMFLOAT3));
-    D3D12_VERTEX_BUFFER_VIEW verteciesView = {};
-    verteciesView.BufferLocation = verteciesResource->GetGPUVirtualAddress();
-    verteciesView.SizeInBytes = vertecies.size() * sizeof(XMFLOAT3);
-    verteciesView.StrideInBytes = sizeof(XMFLOAT3);
-    m_CommandList->IASetVertexBuffers(0, 1, &verteciesView);
-    m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_CommandList->IASetVertexBuffers(0, 1, m_Mesh->View());
+    m_CommandList->IASetPrimitiveTopology(m_Mesh->Topology());
 
     ComPtr<ID3DBlob> vertexShader, pixelShader, shaderCompileError;
     try
@@ -248,7 +220,7 @@ UINT64 Graphic::Rendring()
     AssertOK(m_Device->CreateGraphicsPipelineState(&piplineStateDesc, IID_PPV_ARGS(&piplineState)));
     m_CommandList->SetPipelineState(piplineState.Get());
     m_CommandList->SetGraphicsRootSignature(rootSignature.Get());
-    m_CommandList->DrawInstanced(vertecies.size(), 1, 0, 0);
+    m_CommandList->DrawInstanced(m_Mesh->Size(), 1, 0, 0);
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT;

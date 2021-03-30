@@ -11,19 +11,12 @@
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
-
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
-#define AssertOK(operation) \
-    do { \
-        const auto __result = operation; \
-        if(FAILED(__result)) { \
-            auto __message = std::string("Failed\n\n" #operation "\n\n"); \
-            __message += ToMultiByte(ToTString(__result).data()); \
-            throw std::exception(__message.data()); \
-        } \
-    } while(false)
+#include "StringUtility.h"
+#include "Mesh.h"
+
 
 struct Resouce
 {
@@ -46,6 +39,8 @@ private:
     ComPtr<IDXGISwapChain3> m_SwapChain;
     ComPtr<ID3D12DescriptorHeap> m_SwapChainRenderTargetsHeap;
     std::vector<Resouce> m_SwapChainRenderTargets = std::vector<Resouce>();
+
+    std::shared_ptr<Mesh> m_Mesh;
 
     std::vector<ComPtr<ID3D12PipelineState>> piplineStates;
 public:
