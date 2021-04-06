@@ -8,6 +8,7 @@
 // /SUBSYSTEM: Console のエントリ
 int main(int argc, char* argv[])
 {
+	SetConsoleOutputCP(CP_UTF8);
 	return WinMain(NULL, NULL, NULL, 0);
 }
 
@@ -18,7 +19,6 @@ int CALLBACK WinMain(
     _In_ LPSTR lpCmdLine,
     _In_ int nShowCmd)
 {
-	SetConsoleOutputCP(CP_UTF8);
 	try
 	{
 		auto window = std::unique_ptr<Window>(new Window());

@@ -20,10 +20,10 @@ namespace std
 inline string WideToMultiByte(const WCHAR *source)
 {
     auto wideString = wstring(source);
-    auto multiByteLength = WideCharToMultiByte(CP_UTF8, 0, wideString.data(), wideString.size(), NULL, 0, NULL, NULL);
+    auto multiByteLength = WideCharToMultiByte(CP_UTF8, 0, wideString.data(), static_cast<int>(wideString.size()), NULL, 0, NULL, NULL);
     auto multiByteBuffer = vector<char>(multiByteLength + 1);
-    ZeroMemory(multiByteBuffer.data(), multiByteBuffer.size());
-    WideCharToMultiByte(CP_UTF8, 0, wideString.data(), wideString.size(), multiByteBuffer.data(), multiByteBuffer.size(), NULL, NULL);
+    std::memset(multiByteBuffer.data(), 0, multiByteBuffer.size());
+    WideCharToMultiByte(CP_UTF8, 0, wideString.data(), static_cast<int>(wideString.size()), multiByteBuffer.data(), static_cast<int>(multiByteBuffer.size()), NULL, NULL);
     auto multiByteString = string(multiByteBuffer.data());
     return multiByteString;
 }
@@ -31,10 +31,10 @@ inline string WideToMultiByte(const WCHAR *source)
 inline wstring MultiByteToWide(const char *source)
 {
     auto multiByteString = string(source);
-    auto wideLength = MultiByteToWideChar(CP_UTF8, 0, multiByteString.data(), multiByteString.size(), NULL, 0);
+    auto wideLength = MultiByteToWideChar(CP_UTF8, 0, multiByteString.data(), static_cast<int>(multiByteString.size()), NULL, 0);
     auto wideBuffer = vector<WCHAR>(wideLength + 1);
-    ZeroMemory(wideBuffer.data(), wideBuffer.size());
-    MultiByteToWideChar(CP_UTF8, 0, multiByteString.data(), multiByteString.size(), wideBuffer.data(), wideBuffer.size());
+    std::memset(wideBuffer.data(), 0, wideBuffer.size());
+    MultiByteToWideChar(CP_UTF8, 0, multiByteString.data(), static_cast<int>(multiByteString.size()), wideBuffer.data(), static_cast<int>(wideBuffer.size()));
     auto wideString = wstring(wideBuffer.data());
     return wideString;
 }
@@ -61,7 +61,6 @@ inline tstring ToTString(const HRESULT result)
     return message;
 }
 
-#define AssertOK(operation) AssertOKImpl(operation, #operation)
 inline void AssertOKImpl(HRESULT result, const char *code)
 {
     if(FAILED(result))
@@ -71,3 +70,5 @@ inline void AssertOKImpl(HRESULT result, const char *code)
         throw exception(sb.str().data());
     }
 }
+void AssertOK(HRESULT reuslt) { AssertOKImpl(reuslt, ""); }
+// #define AssertOK(operation) AssertOKImpl(operation, #operation)

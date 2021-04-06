@@ -11,6 +11,7 @@ using namespace std;
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
@@ -22,8 +23,8 @@ class Shader
 private:
     ComPtr<ID3DBlob> m_Shader;
 public:
-    LPVOID GetBufferPointer() { return m_Shader->GetBufferPointer(); } 
-    SIZE_T GetBufferSize() { return m_Shader->GetBufferSize(); }
+    const LPVOID GetBufferPointer() { return m_Shader->GetBufferPointer(); } 
+    const SIZE_T GetBufferSize() { return m_Shader->GetBufferSize(); }
 public:
     Shader(string type, string code)
     {
