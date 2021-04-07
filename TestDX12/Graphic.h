@@ -27,16 +27,13 @@ private:
     ComPtr<ID3D12Device8> m_Device;
     ComPtr<IDXGIFactory7> m_Factory;
 
-    ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
-    ComPtr<ID3D12GraphicsCommandList> m_CommandList;
+    vector<ComPtr<ID3D12CommandAllocator>> m_CommandAllocators;
     ComPtr<ID3D12CommandQueue> m_CommandQueue;
     
     shared_ptr<SwapChainRenderTargets> m_SwapChainRenderTarget;
     shared_ptr<Mesh> m_Mesh;
     shared_ptr<Shader> m_VertexShader;
     shared_ptr<Shader> m_PixelShader;
-
-    vector<ComPtr<ID3D12PipelineState>> piplineStates;
 
     UINT64 m_FrameIndex = ~0;
 
@@ -45,7 +42,6 @@ public:
     {
         m_WindowHandle = window;
         AssertOK(CoInitialize(NULL));
-
         EnableDebug();
         
         // Device
@@ -53,9 +49,6 @@ public:
         AssertOK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 
         // Command
-        AssertOK(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator)));
-        AssertOK(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
-        AssertOK(m_CommandList->Close());
         D3D12_COMMAND_QUEUE_DESC commandQueueCreateDesc =
         {
             .Type = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -64,6 +57,12 @@ public:
             .NodeMask = 0,
         };
         AssertOK(m_Device->CreateCommandQueue(&commandQueueCreateDesc, IID_PPV_ARGS(&m_CommandQueue)));
+        for (size_t i = 0; i < 2; i++)
+        {
+            ComPtr<ID3D12CommandAllocator> commandAllocator;
+            AssertOK(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator)));
+            m_CommandAllocators.push_back(commandAllocator);
+        }
         
         // Resources
         m_SwapChainRenderTarget.reset(new SwapChainRenderTargets(m_WindowHandle, m_Device, m_Factory, m_CommandQueue));
@@ -86,12 +85,13 @@ public:
     {
         m_FrameIndex++;
 
-        AssertOK(m_CommandAllocator->Reset());
-        AssertOK(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
+        auto commandAllocator = m_CommandAllocators[m_SwapChainRenderTarget->CurrentIndex()];
+        ComPtr<ID3D12GraphicsCommandList> commandList;
+        AssertOK(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
         
         // IA
-        m_CommandList->IASetVertexBuffers(0, 1, m_Mesh->View());
-        m_CommandList->IASetPrimitiveTopology(m_Mesh->Topology());
+        commandList->IASetVertexBuffers(0, 1, m_Mesh->View());
+        commandList->IASetPrimitiveTopology(m_Mesh->Topology());
         
         // RS
         RECT windowRect = {};
@@ -103,14 +103,14 @@ public:
         viewPort.Height = static_cast<FLOAT>(windowRect.bottom - windowRect.top);
         viewPort.MinDepth = 1.0f;
         viewPort.MaxDepth = 1.1f;
-        m_CommandList->RSSetViewports(1, &viewPort);
+        commandList->RSSetViewports(1, &viewPort);
         D3D12_RECT scissor = {
             .left = 0,
             .top = 0,
             .right = windowRect.right - windowRect.left,
             .bottom = windowRect.bottom - windowRect.top,
         };
-        m_CommandList->RSSetScissorRects(1, &scissor);
+        commandList->RSSetScissorRects(1, &scissor);
 
         // Signatures
         ComPtr<ID3D12RootSignature> rootSignature;
@@ -127,11 +127,10 @@ public:
             throw;
         }
         AssertOK(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
-        m_CommandList->SetGraphicsRootSignature(rootSignature.Get());
+        commandList->SetGraphicsRootSignature(rootSignature.Get());
 
         // StateObject
-        ComPtr<ID3D12PipelineState> piplineState;
-        piplineStates.push_back(piplineState); // TODO: 適当なタイミングで解放
+        ID3D12PipelineState* piplineState;
         D3D12_GRAPHICS_PIPELINE_STATE_DESC piplineStateDesc =
         {
             .pRootSignature = rootSignature.Get(),
@@ -176,20 +175,20 @@ public:
             .Flags = D3D12_PIPELINE_STATE_FLAGS::D3D12_PIPELINE_STATE_FLAG_NONE,
         };
         AssertOK(m_Device->CreateGraphicsPipelineState(&piplineStateDesc, IID_PPV_ARGS(&piplineState)));
-        m_CommandList->SetPipelineState(piplineState.Get());
+        commandList->SetPipelineState(piplineState);
 
         // Rendering
-        m_SwapChainRenderTarget->ChangeBarrier(m_CommandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_SwapChainRenderTarget->ChangeBarrier(commandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto color = XMFLOAT4(1.0f * (m_FrameIndex % 256) / 256.0f, 0.0f, 0.0f, 1.0f);
-        m_CommandList->ClearRenderTargetView(m_SwapChainRenderTarget->DiscriptorHandle(), reinterpret_cast<FLOAT*>(&color), 0, nullptr);
+        commandList->ClearRenderTargetView(m_SwapChainRenderTarget->DiscriptorHandle(), reinterpret_cast<FLOAT*>(&color), 0, nullptr);
         auto renderTargets = array { m_SwapChainRenderTarget->DiscriptorHandle() };
-        m_CommandList->OMSetRenderTargets(1, renderTargets.data(), false, nullptr);
-        m_CommandList->DrawInstanced(m_Mesh->Size(), 1, 0, 0);
-        m_SwapChainRenderTarget->ChangeBarrier(m_CommandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT);
+        commandList->OMSetRenderTargets(1, renderTargets.data(), false, nullptr);
+        commandList->DrawInstanced(m_Mesh->Size(), 1, 0, 0);
+        m_SwapChainRenderTarget->ChangeBarrier(commandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT);
         
         // Execute
-        AssertOK(m_CommandList->Close());
-        m_CommandQueue->ExecuteCommandLists(1, std::vector<ID3D12CommandList*>({ m_CommandList.Get() }).data());
+        AssertOK(commandList->Close());
+        m_CommandQueue->ExecuteCommandLists(1, std::vector<ID3D12CommandList*>({ commandList.Get() }).data());
         AssertOK(m_SwapChainRenderTarget->SwapChain()->Present(DXGI_SWAP_EFFECT_SEQUENTIAL, 0 /* DXGI_PRESENT */));
 
         // Wait
@@ -207,14 +206,12 @@ public:
     }
 
 private:
-    static void EnableDebug()
+    void EnableDebug()
     {
-        ComPtr<ID3D12Debug> debug;
+        ComPtr<ID3D12Debug1> debug;
         AssertOK(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
         debug->EnableDebugLayer();
-        ComPtr<ID3D12Debug1> debugEx;
-        AssertOK(debug->QueryInterface(IID_PPV_ARGS(&debugEx)));
-        debugEx->SetEnableGPUBasedValidation(true);
+        debug->SetEnableGPUBasedValidation(true);
     }
 
     static std::vector<ComPtr<IDXGIAdapter>> GetAdapters(IDXGIFactory7 *factory)
