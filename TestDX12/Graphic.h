@@ -66,14 +66,20 @@ public:
         
         // Resources
         m_SwapChainRenderTarget.reset(new SwapChainRenderTargets(m_WindowHandle, m_Device, m_Factory, m_CommandQueue));
-        m_Mesh.reset(new Mesh(m_Device, std::vector<XMFLOAT3>(
-        {
-            { -1.0f, -1.0f, +0.0f },
-            { -1.0f, +1.0f, +0.0f },
-            { +1.0f, -1.0f, +0.0f },
-        })));
-        m_VertexShader.reset(new Shader("vs_5_0", "float4 main(float4 pos : POSITION) : SV_POSITION { return pos; }"));
-        m_PixelShader.reset(new Shader("ps_5_0", "float4 main(float4 pos : SV_POSITION) : SV_TARGET { return float4(1,1,1,1); }"));
+                m_Mesh.reset(new Mesh(
+            m_Device,
+            vector<VERTEX>
+            {
+                { .Postion { -0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { -0.8f, -0.8f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+                { .Postion { -0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { -0.8f, +0.8f, }, .Color { 1.0f, 0.0f, 1.0f, 1.0f}, },
+                { .Postion { +0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { +0.8f, -0.8f, }, .Color { 1.0f, 1.0f, 0.0f, 1.0f}, },
+                { .Postion { +0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { +0.8f, +0.8f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+            },
+            vector<USHORT>{ 0, 1, 2, 2, 1, 3, }));
+        const auto i2v = string("struct I2V { float4 Position : POSITION; float2 Texcord : TEXCOORD; float3 Normal : NORMAL; float3 Tangent : TANGENT; float4 Color : COLOR; }; ");
+        const auto v2f = string("struct V2F { float4 Position : SV_POSITION; float2 Texcord : TEXCOORD; float3 Normal : NORMAL; float3 Tangent : TANGENT; float4 Color : COLOR; }; ");
+        m_VertexShader.reset(new Shader("vs_5_0", i2v + v2f + "V2F main(I2V i2v) { V2F v2f; v2f.Position = i2v.Position; v2f.Texcord = i2v.Texcord; v2f.Normal = i2v.Normal; v2f.Tangent = i2v.Tangent; v2f.Color = i2v.Color; return v2f; }"));
+        m_PixelShader.reset(new Shader("ps_5_0", v2f + "float4 main(V2F v2f) : SV_TARGET { return float4(v2f.Texcord, 0, 1); }"));
     }
 
     ~Graphic()
@@ -90,7 +96,8 @@ public:
         AssertOK(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
         
         // IA
-        commandList->IASetVertexBuffers(0, 1, m_Mesh->View());
+        commandList->IASetVertexBuffers(0, 1, m_Mesh->VertexView());
+        commandList->IASetIndexBuffer(m_Mesh->IndexView());
         commandList->IASetPrimitiveTopology(m_Mesh->Topology());
         
         // RS
@@ -163,7 +170,7 @@ public:
                 .DepthClipEnable = true,
             },
             .DepthStencilState = {},
-            .InputLayout = { .pInputElementDescs = m_Mesh->InputElements(), .NumElements = 1 },
+            .InputLayout = { .pInputElementDescs = m_Mesh->InputElements()->data(), .NumElements = static_cast<UINT>(m_Mesh->InputElements()->size()) },
             .IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE::D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
@@ -183,7 +190,7 @@ public:
         commandList->ClearRenderTargetView(m_SwapChainRenderTarget->DiscriptorHandle(), reinterpret_cast<FLOAT*>(&color), 0, nullptr);
         auto renderTargets = array { m_SwapChainRenderTarget->DiscriptorHandle() };
         commandList->OMSetRenderTargets(1, renderTargets.data(), false, nullptr);
-        commandList->DrawInstanced(m_Mesh->Size(), 1, 0, 0);
+        commandList->DrawIndexedInstanced(m_Mesh->Size(), 1, 0, 0, 0);
         m_SwapChainRenderTarget->ChangeBarrier(commandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT);
         
         // Execute
