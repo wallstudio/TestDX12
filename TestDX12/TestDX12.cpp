@@ -2,12 +2,14 @@
 #include <windows.h>
 #include <vector>
 #include <memory>
+#include <filesystem>
 #include "Window.h"
 #include "StringUtility.h"
 
 // /SUBSYSTEM: Console のエントリ
 int main(int argc, char* argv[])
 {
+	cout << filesystem::current_path().string() << endl;
 	SetConsoleOutputCP(CP_UTF8);
 	return WinMain(NULL, NULL, NULL, 0);
 }

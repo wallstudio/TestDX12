@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <fstream>
 using namespace std;
 
 #include <d3d12.h>
@@ -26,12 +27,17 @@ public:
     const LPVOID GetBufferPointer() { return m_Shader->GetBufferPointer(); } 
     const SIZE_T GetBufferSize() { return m_Shader->GetBufferSize(); }
 public:
-    Shader(string type, string code)
+    Shader(string targetModel, string entrypoint, ifstream file)
     {
+        auto buff = stringstream();
+        buff << file.rdbuf();
+        const auto code = string(buff.str());
+
         ComPtr<ID3DBlob> error;
         const auto result = D3DCompile(
-            code.data(), code.size(), "VS", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-            "main", type.data(), D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Shader, &error);
+            code.data(), code.size(),
+            entrypoint.data(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+            entrypoint.data(), targetModel.data(), D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Shader, &error);
         if(error != nullptr)
         {
             throw exception(reinterpret_cast<char *>(error->GetBufferPointer()));

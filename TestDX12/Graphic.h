@@ -76,10 +76,8 @@ public:
                 { .Postion { +0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { +0.8f, +0.8f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
             },
             vector<USHORT>{ 0, 1, 2, 2, 1, 3, }));
-        const auto i2v = string("struct I2V { float4 Position : POSITION; float2 Texcord : TEXCOORD; float3 Normal : NORMAL; float3 Tangent : TANGENT; float4 Color : COLOR; }; ");
-        const auto v2f = string("struct V2F { float4 Position : SV_POSITION; float2 Texcord : TEXCOORD; float3 Normal : NORMAL; float3 Tangent : TANGENT; float4 Color : COLOR; }; ");
-        m_VertexShader.reset(new Shader("vs_5_0", i2v + v2f + "V2F main(I2V i2v) { V2F v2f; v2f.Position = i2v.Position; v2f.Texcord = i2v.Texcord; v2f.Normal = i2v.Normal; v2f.Tangent = i2v.Tangent; v2f.Color = i2v.Color; return v2f; }"));
-        m_PixelShader.reset(new Shader("ps_5_0", v2f + "float4 main(V2F v2f) : SV_TARGET { return float4(v2f.Texcord, 0, 1); }"));
+        m_VertexShader.reset(new Shader("vs_5_0", "vs", ifstream("Shader.hlsl")));
+        m_PixelShader.reset(new Shader("ps_5_0", "ps", ifstream("Shader.hlsl")));
     }
 
     ~Graphic()

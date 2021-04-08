@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/x64/Debug/TestDX12.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/TestDX12",
             "environment": [],
             "console": "externalTerminal",
             "preLaunchTask": "build"
