@@ -3,6 +3,7 @@
 #include "Mesh.h"
 #include "Shader.h"
 #include "SwapChainRenderTargets.h"
+#include "Texture.h"
 
 class Graphic
 {
@@ -18,6 +19,7 @@ private:
     std::shared_ptr<Mesh> m_Mesh;
     std::shared_ptr<Shader> m_VertexShader;
     std::shared_ptr<Shader> m_PixelShader;
+    std::shared_ptr<Texture> m_Texture;
 
     UINT64 m_FrameIndex = ~0;
 
@@ -65,6 +67,7 @@ public:
             vector<USHORT>{ 0, 1, 2, 2, 1, 3, }));
         m_VertexShader.reset(new Shader("vs_5_0", "vs", ifstream("Shader.hlsl")));
         m_PixelShader.reset(new Shader("ps_5_0", "ps", ifstream("Shader.hlsl")));
+        m_Texture.reset(new Texture(m_Device, "Texture.png"));
     }
 
     ~Graphic()
