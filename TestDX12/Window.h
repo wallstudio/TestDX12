@@ -19,6 +19,7 @@ class Window
 {
 private:
     HMODULE m_ModuleHandle;
+    WNDCLASSEX m_WindowClass;
     HWND m_WindowHandle;
     std::unique_ptr<Graphic> m_Graphic;
 
@@ -27,7 +28,7 @@ public:
     {
         m_ModuleHandle = GetModuleHandle(NULL);
         
-        WNDCLASSEX windowClass =
+        m_WindowClass =
         {
             .cbSize = sizeof(WNDCLASSEX),
             .style = CS_HREDRAW | CS_VREDRAW,
@@ -80,14 +81,14 @@ public:
             .lpszClassName = TEXT("MY_WINDOW_CLASS"),
             .hIconSm = LoadIcon(m_ModuleHandle, MAKEINTRESOURCE(APP_ICON)),
         };
-        if(!RegisterClassEx(&windowClass))
+        if(!RegisterClassEx(&m_WindowClass))
         {
             throw std::exception("Failed register window class怪.");
         }
         // 制御が戻るまでに次のメッセージが消費される
         // WM_GETMINMAXINFO, WM_NCCREA, WM_NCCALCSIZE, WM_CREATE
         m_WindowHandle = CreateWindow(
-            windowClass.lpszClassName,
+            m_WindowClass.lpszClassName,
             TEXT("TestDX12"),
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
@@ -101,6 +102,11 @@ public:
 
         SetWindowLongPtr(m_WindowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
         ShowWindow(m_WindowHandle, SW_SHOW);
+    }
+
+    ~Window()
+    {
+        UnregisterClass(m_WindowClass.lpszClassName, m_ModuleHandle);
     }
     
     static MSG WaitApplicationQuit()

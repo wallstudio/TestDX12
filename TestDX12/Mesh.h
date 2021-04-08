@@ -63,7 +63,7 @@ public:
         {
             .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER,
             .Alignment = 0,
-            .Width = vertecies.size() * sizeof(VERTEX),
+            .Width = vertecies.size() * sizeof(*vertecies.data()),
             .Height = 1,
             .DepthOrArraySize = 1,
             .MipLevels = 1,
@@ -77,7 +77,7 @@ public:
         {
             .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER,
             .Alignment = 0,
-            .Width = indecies.size() * sizeof(USHORT),
+            .Width = indecies.size() * sizeof(*indecies.data()),
             .Height = 1,
             .DepthOrArraySize = 1,
             .MipLevels = 1,
@@ -92,24 +92,24 @@ public:
         // Resourceに書き込み
         void *vertexMapping;
         AssertOK(m_VertexResource->Map(0, nullptr, &vertexMapping));
-        std::memcpy(vertexMapping, vertecies.data(), vertecies.size() * sizeof(VERTEX));
+        std::memcpy(vertexMapping, vertecies.data(), vertecies.size() * sizeof(*vertecies.data()));
         m_VertexResource->Unmap(0, nullptr);
         void *indexMapping;
         AssertOK(m_IndexResource->Map(0, nullptr, &indexMapping));
-        std::memcpy(indexMapping, indecies.data(), indecies.size() * sizeof(USHORT));
+        std::memcpy(indexMapping, indecies.data(), indecies.size() * sizeof(*indecies.data()));
         m_IndexResource->Unmap(0, nullptr);
 
         // View
         m_VertexView =
         {
             .BufferLocation = m_VertexResource->GetGPUVirtualAddress(),
-            .SizeInBytes = static_cast<UINT>(vertecies.size()) * sizeof(VERTEX),
-            .StrideInBytes = sizeof(VERTEX),
+            .SizeInBytes = static_cast<UINT>(vertecies.size()) * sizeof(*vertecies.data()),
+            .StrideInBytes = sizeof(*vertecies.data()),
         };
         m_IndexView =
         {
             .BufferLocation = m_IndexResource->GetGPUVirtualAddress(),
-            .SizeInBytes = static_cast<UINT>(indecies.size()) * sizeof(USHORT),
+            .SizeInBytes = static_cast<UINT>(indecies.size()) * sizeof(*indecies.data()),
             .Format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT,
         };
 
@@ -134,7 +134,7 @@ public:
                 .InputSlotClass = D3D12_INPUT_CLASSIFICATION::D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
                 .InstanceDataStepRate = 0,
             });
-            offset += sizeof(VERTEX::Postion);
+            offset += static_cast<UINT>(size);
         }
     }
 };
