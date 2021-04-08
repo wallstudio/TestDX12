@@ -3,7 +3,6 @@
 #include <Windows.h>
 #include <vector>
 #include <string>
-#include <exception>
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -11,30 +10,30 @@
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
-using namespace Microsoft::WRL;
-using namespace DirectX;
 
-#include "StringUtility.h"
+#include "Assertion.h"
 
 class SwapChainRenderTargets
 {
 private:
-    ComPtr<IDXGISwapChain3> m_SwapChain;
-    ComPtr<ID3D12DescriptorHeap> m_SwapChainRenderTargetsHeap;
-    vector<D3D12_CPU_DESCRIPTOR_HANDLE> m_DiscriptorHandles;
-    vector<ComPtr<ID3D12Resource>> m_Resources;
+    Microsoft::WRL::ComPtr<IDXGISwapChain3> m_SwapChain;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SwapChainRenderTargetsHeap;
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> m_DiscriptorHandles;
+    std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_Resources;
 
 public:
-    const ComPtr<IDXGISwapChain3> SwapChain() { return m_SwapChain; }
+    const Microsoft::WRL::ComPtr<IDXGISwapChain3> SwapChain() { return m_SwapChain; }
     const UINT CurrentIndex() { return m_SwapChain->GetCurrentBackBufferIndex(); }
     const D3D12_CPU_DESCRIPTOR_HANDLE DiscriptorHandle() { return DiscriptorHandle(CurrentIndex()); }
     const D3D12_CPU_DESCRIPTOR_HANDLE DiscriptorHandle(UINT index) { return m_DiscriptorHandles[index]; }
-    const ComPtr<ID3D12Resource> Resouce() { return Resouce(CurrentIndex()); }
-    const ComPtr<ID3D12Resource> Resouce(UINT index) { return m_Resources[index]; }
+    const Microsoft::WRL::ComPtr<ID3D12Resource> Resouce() { return Resouce(CurrentIndex()); }
+    const Microsoft::WRL::ComPtr<ID3D12Resource> Resouce(UINT index) { return m_Resources[index]; }
 
-    SwapChainRenderTargets(HWND windowHandle, ComPtr<ID3D12Device8> device, ComPtr<IDXGIFactory7> factory, ComPtr<ID3D12CommandQueue> commandQueue)
+    SwapChainRenderTargets(HWND windowHandle, Microsoft::WRL::ComPtr<ID3D12Device8> device, Microsoft::WRL::ComPtr<IDXGIFactory7> factory, Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue)
     {
-        // SwapChainiResource‚ÌŠm•Ûj
+        using namespace Microsoft::WRL;
+
+        // SwapChainï¼ˆResourceã®ç¢ºä¿ï¼‰
         RECT windowRect = {};
         GetClientRect(windowHandle, &windowRect);
         DXGI_SWAP_CHAIN_DESC1 swapChainDesc =
@@ -55,7 +54,7 @@ public:
         AssertOK(factory->CreateSwapChainForHwnd(commandQueue.Get(), windowHandle, &swapChainDesc, nullptr, nullptr, &swapChain1));
         AssertOK(swapChain1.As(&m_SwapChain));
 
-        // Discriptor‘‚«ž‚Ýæ‚ÌHeapŠm•Û
+        // Discriptoræ›¸ãè¾¼ã¿å…ˆã®Heapç¢ºä¿
         D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc =
         {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -65,7 +64,7 @@ public:
         };
         AssertOK(device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_SwapChainRenderTargetsHeap)));
 
-        // DiscriptoriViewj‘‚«ž‚Ý
+        // Discriptorï¼ˆViewï¼‰æ›¸ãè¾¼ã¿
         D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandleCursor = m_SwapChainRenderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
         for (UINT i = 0; i < swapChainDesc.BufferCount; i++)
         {
@@ -81,8 +80,8 @@ public:
         }
     }
 
-    void ChangeBarrier(ComPtr<ID3D12GraphicsCommandList> commands, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState) { ChangeBarrier(commands, prevState, nextState, CurrentIndex()); }
-    void ChangeBarrier(ComPtr<ID3D12GraphicsCommandList> commands, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState, UINT index)
+    void ChangeBarrier(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commands, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState) { ChangeBarrier(commands, prevState, nextState, CurrentIndex()); }
+    void ChangeBarrier(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commands, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState, UINT index)
     {
         D3D12_RESOURCE_BARRIER barrier =
         {

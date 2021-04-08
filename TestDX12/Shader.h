@@ -1,9 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <array>
 #include <fstream>
-using namespace std;
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -13,22 +11,23 @@ using namespace std;
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
-using namespace Microsoft::WRL;
-using namespace DirectX;
 
-#include "StringUtility.h"
+#include "Assertion.h"
 
 
 class Shader
 {
 private:
-    ComPtr<ID3DBlob> m_Shader;
+    Microsoft::WRL::ComPtr<ID3DBlob> m_Shader;
 public:
     const LPVOID GetBufferPointer() { return m_Shader->GetBufferPointer(); } 
     const SIZE_T GetBufferSize() { return m_Shader->GetBufferSize(); }
 public:
-    Shader(string targetModel, string entrypoint, ifstream file)
+    Shader(std::string targetModel, std::string entrypoint, std::ifstream file)
     {
+        using namespace std;
+        using namespace Microsoft::WRL;
+
         auto buff = stringstream();
         buff << file.rdbuf();
         const auto code = string(buff.str());

@@ -1,50 +1,50 @@
 #pragma once
 
 #include <vector>
-#include <array>
-using namespace std;
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include "wrl.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
-using namespace Microsoft::WRL;
-using namespace DirectX;
+#pragma comment(lib, "d3dcompiler.lib")
 
-#include "StringUtility.h"
+#include "Assertion.h"
 
 struct VERTEX
 {
-    XMFLOAT4 Postion;
-    XMFLOAT2 Texcord;
-    XMFLOAT3 Normal;
-    XMFLOAT3 Tangent;
-    XMFLOAT4 Color;
+    DirectX::XMFLOAT4 Postion;
+    DirectX::XMFLOAT2 Texcord;
+    DirectX::XMFLOAT3 Normal;
+    DirectX::XMFLOAT3 Tangent;
+    DirectX::XMFLOAT4 Color;
 };
 
 class Mesh
 {
 private:
-    ComPtr<ID3D12Device8> m_Device;
+    Microsoft::WRL::ComPtr<ID3D12Device8> m_Device;
     UINT m_Size;
     D3D12_HEAP_PROPERTIES m_HeapProp = {};
     D3D12_RESOURCE_DESC m_VertexResourceDesc = {};
     D3D12_RESOURCE_DESC m_IndexResourceDesc = {};
-    ComPtr<ID3D12Resource> m_VertexResource;
-    ComPtr<ID3D12Resource> m_IndexResource;
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_VertexResource;
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_IndexResource;
     D3D12_VERTEX_BUFFER_VIEW m_VertexView = {};
     D3D12_INDEX_BUFFER_VIEW m_IndexView = {};
-    vector<D3D12_INPUT_ELEMENT_DESC> m_InputElementDescs;
+    std::vector<D3D12_INPUT_ELEMENT_DESC> m_InputElementDescs;
+
 public:
     const UINT Size() { return m_Size; }
     const D3D12_VERTEX_BUFFER_VIEW *const VertexView() { return &m_VertexView; }
     const D3D12_INDEX_BUFFER_VIEW *const IndexView() { return &m_IndexView; }
-    const vector<D3D12_INPUT_ELEMENT_DESC> *const InputElements() { return &m_InputElementDescs; }
+    const std::vector<D3D12_INPUT_ELEMENT_DESC> *const InputElements() { return &m_InputElementDescs; }
     const D3D_PRIMITIVE_TOPOLOGY Topology() { return D3D_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP; }
+
 public:
-    Mesh(const ComPtr<ID3D12Device8> device, vector<VERTEX> vertecies, vector<USHORT> indecies)
+    Mesh(const Microsoft::WRL::ComPtr<ID3D12Device8> device, std::vector<VERTEX> vertecies, std::vector<USHORT> indecies)
     {
         m_Device = device;
         
@@ -115,6 +115,7 @@ public:
 
         // レイアウト
         UINT offset = 0;
+        using std::tuple;
         for(auto [semantic, format, size] :
         {
             tuple("POSITION", DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT, sizeof(VERTEX::Postion)),

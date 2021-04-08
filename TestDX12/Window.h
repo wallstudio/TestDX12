@@ -1,8 +1,5 @@
 #pragma once
 
-#include <windows.h>
-#include <memory>
-#include <exception>
 #include <functional>
 
 #include "Graphic.h"
@@ -26,6 +23,8 @@ private:
 public:
     Window()
     {
+        using namespace std;
+
         m_ModuleHandle = GetModuleHandle(NULL);
         
         m_WindowClass =
@@ -42,7 +41,7 @@ public:
                     {
                         unsigned int seCode = 0;
                         LRESULT result = 0;
-                        std::function<void()> callback = [&]() -> void { result = _this->WindowProcess(message, param, longParam); };
+                        function<void()> callback = [&]() -> void { result = _this->WindowProcess(message, param, longParam); };
                         HandleStructuredException(&callback, seCode);
                         if(seCode != 0)
                         {
@@ -50,21 +49,21 @@ public:
                             // https://github.com/Alexpux/mingw-w64/blob/master/mingw-w64-headers/include/minwinbase.h#L284
                             // https://github.com/wine-mirror/wine/blob/master/include/winnt.h#L611
                             // https://github.com/apitrace/dxsdk/blob/master/Include/d3d9.h#L1981 （これはDX9多分違う）
-                            std::stringstream sstream;
-                            sstream << "Structured Exception: " << std::hex << seCode;
-                            throw std::exception(sstream.str().data());
+                            stringstream sstream;
+                            sstream << "Structured Exception: " << hex << seCode;
+                            throw exception(sstream.str().data());
                         }
                         return result;
                     }
-                    catch(std::exception e)
+                    catch(exception e)
                     {
-                        std::cout << e.what() << std::endl;
+                        cout << e.what() << endl;
                         MessageBox(NULL, ToTString(e.what()).data(), TEXT("Exception"), MB_OK);
                         DestroyWindow(window);
                     }
                     catch(...)
                     {
-                        std::cout << "Unknown Error" << std::endl;
+                        cout << "Unknown Error" << endl;
                         MessageBox(NULL, TEXT("Unknown Error"), TEXT("Exception"), MB_OK);
                         DestroyWindow(window);
                     }
@@ -83,7 +82,7 @@ public:
         };
         if(!RegisterClassEx(&m_WindowClass))
         {
-            throw std::exception("Failed register window class怪.");
+            throw exception("Failed register window class怪.");
         }
         // 制御が戻るまでに次のメッセージが消費される
         // WM_GETMINMAXINFO, WM_NCCREA, WM_NCCALCSIZE, WM_CREATE

@@ -5,8 +5,6 @@
 #include <sstream>
 #include <vector>
 #include <Windows.h>
-using namespace std;
-
 
 namespace std
 {
@@ -17,8 +15,10 @@ namespace std
     #endif
 }
 
-inline string WideToMultiByte(const WCHAR *source)
+inline std::string WideToMultiByte(const WCHAR *source)
 {
+    using namespace std;
+
     auto wideString = wstring(source);
     auto multiByteLength = WideCharToMultiByte(CP_UTF8, 0, wideString.data(), static_cast<int>(wideString.size()), NULL, 0, NULL, NULL);
     auto multiByteBuffer = vector<char>(multiByteLength + 1);
@@ -28,8 +28,10 @@ inline string WideToMultiByte(const WCHAR *source)
     return multiByteString;
 }
 
-inline wstring MultiByteToWide(const char *source)
+inline std::wstring MultiByteToWide(const char *source)
 {
+    using namespace std;
+
     auto multiByteString = string(source);
     auto wideLength = MultiByteToWideChar(CP_UTF8, 0, multiByteString.data(), static_cast<int>(multiByteString.size()), NULL, 0);
     auto wideBuffer = vector<WCHAR>(wideLength + 1);
@@ -40,18 +42,18 @@ inline wstring MultiByteToWide(const char *source)
 }
 
 #if UNICODE
-inline tstring ToTString(const WCHAR *source) { return wstring(source); }
-inline tstring ToTString(const char *source) { return MultiByteToWide(source); }
-inline string ToMultiByte(const TCHAR *source) { return WideToMultiByte(source); }
-inline wstring ToWide(const TCHAR *source) { return ToTString(source); }
+inline std::tstring ToTString(const WCHAR *source) { return std::wstring(source); }
+inline std::tstring ToTString(const char *source) { return MultiByteToWide(source); }
+inline std::string ToMultiByte(const TCHAR *source) { return WideToMultiByte(source); }
+inline std::wstring ToWide(const TCHAR *source) { return ToTString(source); }
 #else
-inline tstring ToTString(const WCHAR *source) { return WideToMultiByte(source); }
-inline tstring ToTString(const char *source) { return string(source); }
-inline string ToMultiByte(const TCHAR *source) { return ToTString(source); }
-inline wstring ToWide(const TCHAR *source) { return MultiByteToWide(source); }
+inline std::tstring ToTString(const WCHAR *source) { return WideToMultiByte(source); }
+inline std::tstring ToTString(const char *source) { return std::string(source); }
+inline std::string ToMultiByte(const TCHAR *source) { return ToTString(source); }
+inline std::wstring ToWide(const TCHAR *source) { return MultiByteToWide(source); }
 #endif
 
-inline tstring ToTString(const HRESULT result)
+inline std::tstring ToTString(const HRESULT result)
 {
     LPTSTR buffer = NULL;
     const auto flag = FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM;
@@ -60,15 +62,3 @@ inline tstring ToTString(const HRESULT result)
     LocalFree(buffer);
     return message;
 }
-
-inline void AssertOKImpl(HRESULT result, const char *code)
-{
-    if(FAILED(result))
-    {
-        auto sb = stringstream();
-        sb << "Failed\n\n" << code << "\n\n" << ToMultiByte(ToTString(result).data());
-        throw exception(sb.str().data());
-    }
-}
-void AssertOK(HRESULT reuslt) { AssertOKImpl(reuslt, ""); }
-// #define AssertOK(operation) AssertOKImpl(operation, #operation)

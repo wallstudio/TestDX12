@@ -1,45 +1,32 @@
 #pragma once
 
-#include <Windows.h>
-#include <vector>
-#include <string>
-#include <exception>
-
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#include <DirectXMath.h>
-#include "wrl.h"
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
-using namespace Microsoft::WRL;
-using namespace DirectX;
-
-#include "StringUtility.h"
 #include "Mesh.h"
 #include "Shader.h"
 #include "SwapChainRenderTargets.h"
-
 
 class Graphic
 {
 private:
     HWND m_WindowHandle;
-    ComPtr<ID3D12Device8> m_Device;
-    ComPtr<IDXGIFactory7> m_Factory;
+    Microsoft::WRL::ComPtr<ID3D12Device8> m_Device;
+    Microsoft::WRL::ComPtr<IDXGIFactory7> m_Factory;
 
-    vector<ComPtr<ID3D12CommandAllocator>> m_CommandAllocators;
-    ComPtr<ID3D12CommandQueue> m_CommandQueue;
+    std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> m_CommandAllocators;
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_CommandQueue;
     
-    shared_ptr<SwapChainRenderTargets> m_SwapChainRenderTarget;
-    shared_ptr<Mesh> m_Mesh;
-    shared_ptr<Shader> m_VertexShader;
-    shared_ptr<Shader> m_PixelShader;
+    std::shared_ptr<SwapChainRenderTargets> m_SwapChainRenderTarget;
+    std::shared_ptr<Mesh> m_Mesh;
+    std::shared_ptr<Shader> m_VertexShader;
+    std::shared_ptr<Shader> m_PixelShader;
 
     UINT64 m_FrameIndex = ~0;
 
 public:
     Graphic(HWND window)
     {
+        using namespace std;
+        using namespace Microsoft::WRL;
+
         m_WindowHandle = window;
         AssertOK(CoInitialize(NULL));
         EnableDebug();
@@ -87,6 +74,10 @@ public:
 
     UINT64 Rendring()
     {
+        using namespace std;
+        using namespace Microsoft::WRL;
+        using namespace DirectX;
+
         m_FrameIndex++;
 
         auto commandAllocator = m_CommandAllocators[m_SwapChainRenderTarget->CurrentIndex()];
@@ -126,9 +117,9 @@ public:
         {
             AssertOK(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION::D3D_ROOT_SIGNATURE_VERSION_1_0, &rootSignatureBlob, &rootSignatureSerializerError));
         }
-        catch(std::exception ex)
+        catch(exception ex)
         {
-            if(rootSignatureSerializerError.Get() != nullptr) throw std::exception(reinterpret_cast<char *>(rootSignatureSerializerError->GetBufferPointer()));
+            if(rootSignatureSerializerError.Get() != nullptr) throw exception(reinterpret_cast<char *>(rootSignatureSerializerError->GetBufferPointer()));
             throw;
         }
         AssertOK(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
@@ -186,14 +177,14 @@ public:
         m_SwapChainRenderTarget->ChangeBarrier(commandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto color = XMFLOAT4(1.0f * (m_FrameIndex % 256) / 256.0f, 0.0f, 0.0f, 1.0f);
         commandList->ClearRenderTargetView(m_SwapChainRenderTarget->DiscriptorHandle(), reinterpret_cast<FLOAT*>(&color), 0, nullptr);
-        auto renderTargets = array { m_SwapChainRenderTarget->DiscriptorHandle() };
+        auto renderTargets = vector { m_SwapChainRenderTarget->DiscriptorHandle() };
         commandList->OMSetRenderTargets(1, renderTargets.data(), false, nullptr);
         commandList->DrawIndexedInstanced(m_Mesh->Size(), 1, 0, 0, 0);
         m_SwapChainRenderTarget->ChangeBarrier(commandList, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT);
         
         // Execute
         AssertOK(commandList->Close());
-        m_CommandQueue->ExecuteCommandLists(1, std::vector<ID3D12CommandList*>({ commandList.Get() }).data());
+        m_CommandQueue->ExecuteCommandLists(1, vector<ID3D12CommandList*>({ commandList.Get() }).data());
         AssertOK(m_SwapChainRenderTarget->SwapChain()->Present(DXGI_SWAP_EFFECT_SEQUENTIAL, 0 /* DXGI_PRESENT */));
 
         // Wait
@@ -213,15 +204,20 @@ public:
 private:
     void EnableDebug()
     {
+        using namespace Microsoft::WRL;
+
         ComPtr<ID3D12Debug1> debug;
         AssertOK(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
         debug->EnableDebugLayer();
         debug->SetEnableGPUBasedValidation(true);
     }
 
-    static std::vector<ComPtr<IDXGIAdapter>> GetAdapters(IDXGIFactory7 *factory)
+    static std::vector<Microsoft::WRL::ComPtr<IDXGIAdapter>> GetAdapters(IDXGIFactory7 *factory)
     {
-        auto adapters = std::vector<ComPtr<IDXGIAdapter>>();
+        using namespace std;
+        using namespace Microsoft::WRL;
+
+        auto adapters = vector<ComPtr<IDXGIAdapter>>();
         for (auto i = 0; ; i++)
         {
             ComPtr<IDXGIAdapter> adapter;

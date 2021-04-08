@@ -1,14 +1,12 @@
 #include <iostream>
-#include <windows.h>
-#include <vector>
-#include <memory>
 #include <filesystem>
 #include "Window.h"
-#include "StringUtility.h"
 
 // /SUBSYSTEM: Console のエントリ
 int main(int argc, char* argv[])
 {
+	using namespace std;
+
 	cout << filesystem::current_path().string() << endl;
 	SetConsoleOutputCP(CP_UTF8);
 	return WinMain(NULL, NULL, NULL, 0);
@@ -21,15 +19,17 @@ int CALLBACK WinMain(
     _In_ LPSTR lpCmdLine,
     _In_ int nShowCmd)
 {
+	using namespace std;
+
 	try
 	{
-		auto window = std::unique_ptr<Window>(new Window());
+		auto window = unique_ptr<Window>(new Window());
 		Window::WaitApplicationQuit();
 		return 0;
 	}
-	catch(std::exception e)
+	catch(exception e)
 	{
-		std::cout << e.what() << std::endl;
+		cout << e.what() << endl;
 		MessageBox(NULL, ToTString(e.what()).data(), TEXT("Error"), MB_OK);
 		return 1;
 	}
