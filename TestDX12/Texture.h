@@ -68,49 +68,84 @@ public:
             .Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
         };
         AssertOK(m_Device->CreateCommittedResource(&m_HeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &m_ResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_Resource)));
-        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-        UINT64 totalSize;
-        m_Device->GetCopyableFootprints(&m_ResourceDesc, 0, 1, 0, &footprint, nullptr, nullptr, &totalSize);
         D3D12_TEXTURE_COPY_LOCATION dest
         {
             .pResource = m_Resource.Get(),
             .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
             .SubresourceIndex = 0,
         };
-        
+        // D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+        // UINT64 totalSize;
+        // m_Device->GetCopyableFootprints(&m_ResourceDesc, 0, 1, 0, &footprint, nullptr, nullptr, &totalSize);
+        // D3D12_TEXTURE_COPY_LOCATION dest
+        // {
+        //     .pResource = m_Resource.Get(),
+        //     .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+        //     .SubresourceIndex = 0,
+        // };
+
         // Upload用
         m_UploadHeapProp =
         {
-            .Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD,
-            .CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-            .MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN,
+            .Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_CUSTOM,
+            .CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_WRITE_BACK,
+            .MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L0,
             .CreationNodeMask = 0,
             .VisibleNodeMask = 0,
         };
         m_UploadResourceDesc =
         {
-            .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER,
+            .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             .Alignment = 0,
-            .Width = totalSize,
-            .Height = 1,
+            .Width = static_cast<UINT>(rect.Width),
+            .Height = static_cast<UINT>(rect.Height),
             .DepthOrArraySize = 1,
             .MipLevels = 1,
-            .Format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN,
+            .Format = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM, // GDI+はBGRAの順番
             .SampleDesc = { .Count = 1, .Quality = 0, },
-            .Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+            .Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN,
             .Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
         };
         AssertOK(m_Device->CreateCommittedResource(&m_UploadHeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &m_UploadResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_UploadResource)));
-        void *mapping;
-        AssertOK(m_UploadResource->Map(0, nullptr, &mapping));
-        std::memcpy(mapping, matrix.data(), matrix.size() * sizeof(*matrix.data()));
-        m_UploadResource->Unmap(0, nullptr);
+        AssertOK(m_UploadResource->WriteToSubresource(0, nullptr, matrix.data(), static_cast<UINT>(rect.Width * sizeof(*matrix.data())), static_cast<UINT>(matrix.size() * sizeof(*matrix.data()))));
         D3D12_TEXTURE_COPY_LOCATION src
         {
             .pResource = m_UploadResource.Get(),
-            .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-            .PlacedFootprint = footprint,
+            .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+            .SubresourceIndex = 0,
         };
+        // m_UploadHeapProp =
+        // {
+        //     .Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD,
+        //     .CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+        //     .MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN,
+        //     .CreationNodeMask = 0,
+        //     .VisibleNodeMask = 0,
+        // };
+        // m_UploadResourceDesc =
+        // {
+        //     .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER,
+        //     .Alignment = 0,
+        //     .Width = totalSize,
+        //     .Height = 1,
+        //     .DepthOrArraySize = 1,
+        //     .MipLevels = 1,
+        //     .Format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN,
+        //     .SampleDesc = { .Count = 1, .Quality = 0, },
+        //     .Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+        //     .Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
+        // };
+        // AssertOK(m_Device->CreateCommittedResource(&m_UploadHeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &m_UploadResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_UploadResource)));
+        // void *mapping;
+        // AssertOK(m_UploadResource->Map(0, nullptr, &mapping));
+        // std::memcpy(mapping, matrix.data(), matrix.size() * sizeof(*matrix.data()));
+        // m_UploadResource->Unmap(0, nullptr);
+        // D3D12_TEXTURE_COPY_LOCATION src
+        // {
+        //     .pResource = m_UploadResource.Get(),
+        //     .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+        //     .PlacedFootprint = footprint,
+        // };
 
         // Copy
         ComPtr<ID3D12CommandQueue> commandQueue;
