@@ -59,10 +59,10 @@ public:
             m_Device,
             vector<VERTEX>
             {
-                { .Postion { -0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { -0.8f, -0.8f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
-                { .Postion { -0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { -0.8f, +0.8f, }, .Color { 1.0f, 0.0f, 1.0f, 1.0f}, },
-                { .Postion { +0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { +0.8f, -0.8f, }, .Color { 1.0f, 1.0f, 0.0f, 1.0f}, },
-                { .Postion { +0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { +0.8f, +0.8f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+                { .Postion { -0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { 0.0f, 1.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+                { .Postion { -0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { 0.0f, 0.0f, }, .Color { 1.0f, 0.0f, 1.0f, 1.0f}, },
+                { .Postion { +0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { 1.0f, 1.0f, }, .Color { 1.0f, 1.0f, 0.0f, 1.0f}, },
+                { .Postion { +0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { 1.0f, 0.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
             },
             vector<USHORT>{ 0, 1, 2, 2, 1, 3, }));
         m_VertexShader.reset(new Shader("vs_5_0", "vs", ifstream("Shader.hlsl")));
@@ -113,8 +113,54 @@ public:
 
         // Signatures
         ComPtr<ID3D12RootSignature> rootSignature;
-        D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-        rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAGS::D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+        auto ranges = vector<D3D12_DESCRIPTOR_RANGE>
+        {
+            {
+                .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                .NumDescriptors = 1,
+                .BaseShaderRegister = 0,
+                .RegisterSpace = 0,
+                .OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+            },
+        };
+        auto parameters = vector<D3D12_ROOT_PARAMETER>
+        {
+            {
+                .ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+                .DescriptorTable =
+                {
+                    .NumDescriptorRanges = static_cast<UINT>(ranges.size()),
+                    .pDescriptorRanges = ranges.data(),
+                },
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL,
+            },
+        };
+        auto samplers = vector<D3D12_STATIC_SAMPLER_DESC>
+        {
+            {
+                .Filter = D3D12_FILTER::D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                .AddressU = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+                .AddressV = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+                .AddressW = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+                .MipLODBias = 0.0f,
+                .MaxAnisotropy = 0,
+                .ComparisonFunc = D3D12_COMPARISON_FUNC::D3D12_COMPARISON_FUNC_NEVER,
+                .BorderColor = D3D12_STATIC_BORDER_COLOR::D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+                .MinLOD = 0.0f,
+                .MaxLOD = D3D12_FLOAT32_MAX,
+                .ShaderRegister = 0,
+                .RegisterSpace = 0,
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL,
+            },
+        };
+        D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc =
+        {
+            .NumParameters = static_cast<UINT>(parameters.size()),
+            .pParameters = parameters.data(),
+            .NumStaticSamplers = static_cast<UINT>(samplers.size()),
+            .pStaticSamplers = samplers.data(),
+            .Flags = D3D12_ROOT_SIGNATURE_FLAGS::D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        };
         ComPtr<ID3DBlob> rootSignatureBlob, rootSignatureSerializerError;
         try
         {
@@ -127,6 +173,8 @@ public:
         }
         AssertOK(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
         commandList->SetGraphicsRootSignature(rootSignature.Get());
+        commandList->SetDescriptorHeaps(1, m_Texture->DescriptorHeap().GetAddressOf());
+        commandList->SetGraphicsRootDescriptorTable(0, m_Texture->DescriptorHandle());
 
         // StateObject
         ID3D12PipelineState* piplineState;
@@ -141,14 +189,21 @@ public:
             .StreamOutput = {},
             .BlendState =
             {
-                .AlphaToCoverageEnable = false,
+                .AlphaToCoverageEnable = true,
                 .IndependentBlendEnable = false,
                 .RenderTarget =
                 {
-                    D3D12_RENDER_TARGET_BLEND_DESC
+                    D3D12_RENDER_TARGET_BLEND_DESC // Transparent
                     {
-                        .BlendEnable = false,
+                        .BlendEnable = true,
                         .LogicOpEnable = false,
+                        .SrcBlend = D3D12_BLEND::D3D12_BLEND_SRC_ALPHA,
+                        .DestBlend = D3D12_BLEND::D3D12_BLEND_INV_SRC_ALPHA,
+                        .BlendOp = D3D12_BLEND_OP::D3D12_BLEND_OP_ADD,
+                        .SrcBlendAlpha = D3D12_BLEND::D3D12_BLEND_ONE,
+                        .DestBlendAlpha = D3D12_BLEND::D3D12_BLEND_ZERO,
+                        .BlendOpAlpha = D3D12_BLEND_OP::D3D12_BLEND_OP_ADD,
+                        .LogicOp = D3D12_LOGIC_OP::D3D12_LOGIC_OP_NOOP,
                         .RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE::D3D12_COLOR_WRITE_ENABLE_ALL,
                     }
                 },

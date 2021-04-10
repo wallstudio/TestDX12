@@ -28,9 +28,14 @@ private:
     // Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadResource;
     D3D12_HEAP_PROPERTIES m_HeapProp = {};
     D3D12_RESOURCE_DESC m_ResourceDesc = {};
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DescriptorHeap;
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
+    D3D12_SHADER_RESOURCE_VIEW_DESC m_View;
 
 public:
+    const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DescriptorHeap() { return m_DescriptorHeap; }
+    const D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHandle() { return m_DescriptorHeap->GetGPUDescriptorHandleForHeapStart(); }
+
     Texture(const Microsoft::WRL::ComPtr<ID3D12Device8> device, std::string file)
     {
         using namespace Microsoft::WRL;
@@ -57,16 +62,32 @@ public:
             .Height = static_cast<UINT>(rect.Height),
             .DepthOrArraySize = 1,
             .MipLevels = 1,
-            .Format = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM,
+            .Format = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM, // GDI+はBGRAの順番
             .SampleDesc = { .Count = 1, .Quality = 0, },
             .Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN,
             .Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
         };
         AssertOK(m_Device->CreateCommittedResource(&m_HeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &m_ResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&m_Resource)));
         // Resourceに書き込み
-        AssertOK(m_Resource->WriteToSubresource(0, nullptr, matrix.data(), rect.Width * sizeof(*matrix.data()), matrix.size() * sizeof(*matrix.data())));
+        AssertOK(m_Resource->WriteToSubresource(0, nullptr, matrix.data(), static_cast<UINT>(rect.Width * sizeof(*matrix.data())), static_cast<UINT>(matrix.size() * sizeof(*matrix.data()))));
 
-        
+        // Descriptor
+        D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc =
+        {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, // SRV
+            .NumDescriptors = 1,
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+            .NodeMask = 0,
+        };
+        AssertOK(m_Device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_DescriptorHeap)));
+        m_View =
+        {
+            .Format = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM,
+            .ViewDimension = D3D12_SRV_DIMENSION::D3D12_SRV_DIMENSION_TEXTURE2D,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .Texture2D = { .MipLevels = 1, },
+        };
+        m_Device->CreateShaderResourceView(m_Resource.Get(), &m_View, m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     }
 
     static std::tuple<std::vector<Pixel>, Gdiplus::Rect> LoadFromFile(std::string file)

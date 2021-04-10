@@ -15,6 +15,8 @@ struct V2F
 	float3 Tangent : TANGENT;
 	float4 Color : COLOR;
 };
+Texture2D<float4> _Texture : register(t0);
+SamplerState _Sampler : register(s0);
 
 V2F vs(I2V i2v)
 {
@@ -29,5 +31,8 @@ V2F vs(I2V i2v)
 
 float4 ps(V2F v2f) : SV_TARGET
 {
-	return float4(v2f.Texcord, 0, 1);
+	float4 v = float4(v2f.Texcord, 0, 1);
+	float4 c = _Texture.Sample(_Sampler, v2f.Texcord);
+	return c;
+	// return c.bgra;
 }
