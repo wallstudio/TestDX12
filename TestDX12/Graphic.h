@@ -4,6 +4,7 @@
 #include "Shader.h"
 #include "SwapChainRenderTargets.h"
 #include "Texture.h"
+#include "MVP.h"
 
 class Graphic
 {
@@ -19,6 +20,7 @@ private:
     std::shared_ptr<Mesh> m_Mesh;
     std::shared_ptr<Shader> m_VertexShader;
     std::shared_ptr<Shader> m_PixelShader;
+    std::shared_ptr<MVP> m_MVP;
     std::shared_ptr<Texture> m_Texture;
 
     UINT64 m_FrameIndex = ~0;
@@ -55,18 +57,30 @@ public:
         
         // Resources
         m_SwapChainRenderTarget.reset(new SwapChainRenderTargets(m_WindowHandle, m_Device, m_Factory, m_CommandQueue));
-                m_Mesh.reset(new Mesh(
+        auto vertexFor3D = vector<VERTEX>
+        {
+            // 3D (Anchored center-center)
+            { .Postion { -0.4f, -0.4f, +0.0f, +1.0f }, .Texcord { 0.0f, 1.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+            { .Postion { -0.4f, +0.4f, +0.0f, +1.0f }, .Texcord { 0.0f, 0.0f, }, .Color { 1.0f, 0.0f, 1.0f, 1.0f}, },
+            { .Postion { +0.4f, -0.4f, +0.0f, +1.0f }, .Texcord { 1.0f, 1.0f, }, .Color { 1.0f, 1.0f, 0.0f, 1.0f}, },
+            { .Postion { +0.4f, +0.4f, +0.0f, +1.0f }, .Texcord { 1.0f, 0.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+        };
+        auto vertexFor2D = vector<VERTEX>
+        {
+            // 2D (Anchored left-up)
+            { .Postion { 000.0f, 800.0f, 0.0f, 1.0f }, .Texcord { 0.0f, 1.0f, }, },
+            { .Postion { 000.0f, 000.0f, 0.0f, 1.0f }, .Texcord { 0.0f, 0.0f, }, },
+            { .Postion { 800.0f, 800.0f, 0.0f, 1.0f }, .Texcord { 1.0f, 1.0f, }, },
+            { .Postion { 800.0f, 000.0f, 0.0f, 1.0f }, .Texcord { 1.0f, 0.0f, }, },
+        };
+        m_Mesh.reset(new Mesh(
             m_Device,
-            vector<VERTEX>
-            {
-                { .Postion { -0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { 0.0f, 1.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
-                { .Postion { -0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { 0.0f, 0.0f, }, .Color { 1.0f, 0.0f, 1.0f, 1.0f}, },
-                { .Postion { +0.8f, -0.8f, +0.0f, +1.0f }, .Texcord { 1.0f, 1.0f, }, .Color { 1.0f, 1.0f, 0.0f, 1.0f}, },
-                { .Postion { +0.8f, +0.8f, +0.0f, +1.0f }, .Texcord { 1.0f, 0.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
-            },
+            // vertexFor3D,
+            vertexFor2D,
             vector<USHORT>{ 0, 1, 2, 2, 1, 3, }));
         m_VertexShader.reset(new Shader("vs_5_0", "vs", ifstream("Shader.hlsl")));
         m_PixelShader.reset(new Shader("ps_5_0", "ps", ifstream("Shader.hlsl")));
+        m_MVP.reset(new MVP(m_Device, m_WindowHandle));
         m_Texture.reset(new Texture(m_Device, "Texture.png"));
     }
 
@@ -113,9 +127,20 @@ public:
 
         // Signatures
         ComPtr<ID3D12RootSignature> rootSignature;
-        auto ranges = vector<D3D12_DESCRIPTOR_RANGE>
+        auto mvpRange = vector<D3D12_DESCRIPTOR_RANGE>
         {
             {
+                // b0
+                .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+                .NumDescriptors = 1,
+                .BaseShaderRegister = 0,
+                .RegisterSpace = 0,
+                .OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+            },
+        };
+        auto textureRange = vector<D3D12_DESCRIPTOR_RANGE>
+        {
+            {   // t0
                 .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
                 .NumDescriptors = 1,
                 .BaseShaderRegister = 0,
@@ -129,8 +154,17 @@ public:
                 .ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
                 .DescriptorTable =
                 {
-                    .NumDescriptorRanges = static_cast<UINT>(ranges.size()),
-                    .pDescriptorRanges = ranges.data(),
+                    .NumDescriptorRanges = static_cast<UINT>(mvpRange.size()),
+                    .pDescriptorRanges = mvpRange.data(),
+                },
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL,
+            },
+            {
+                .ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+                .DescriptorTable =
+                {
+                    .NumDescriptorRanges = static_cast<UINT>(textureRange.size()),
+                    .pDescriptorRanges = textureRange.data(),
                 },
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL,
             },
@@ -138,6 +172,7 @@ public:
         auto samplers = vector<D3D12_STATIC_SAMPLER_DESC>
         {
             {
+                // s0
                 .Filter = D3D12_FILTER::D3D12_FILTER_MIN_MAG_MIP_LINEAR,
                 .AddressU = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP,
                 .AddressV = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP,
@@ -173,8 +208,12 @@ public:
         }
         AssertOK(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
         commandList->SetGraphicsRootSignature(rootSignature.Get());
+        auto heaps = vector{ m_MVP->DescriptorHeap().Get(), m_Texture->DescriptorHeap().Get() };
+        // commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
+        commandList->SetDescriptorHeaps(1, m_MVP->DescriptorHeap().GetAddressOf());
+        commandList->SetGraphicsRootDescriptorTable(0, m_MVP->DescriptorHandle());
         commandList->SetDescriptorHeaps(1, m_Texture->DescriptorHeap().GetAddressOf());
-        commandList->SetGraphicsRootDescriptorTable(0, m_Texture->DescriptorHandle());
+        commandList->SetGraphicsRootDescriptorTable(1, m_Texture->DescriptorHandle());
 
         // StateObject
         ID3D12PipelineState* piplineState;

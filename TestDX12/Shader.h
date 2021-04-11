@@ -39,7 +39,9 @@ public:
             entrypoint.data(), targetModel.data(), D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Shader, &error);
         if(error != nullptr)
         {
-            throw exception(reinterpret_cast<char *>(error->GetBufferPointer()));
+            auto message = string(reinterpret_cast<char *>(error->GetBufferPointer()));
+            cout << message << endl;
+            throw exception(message.data());
         }
         AssertOK(result);
     }
