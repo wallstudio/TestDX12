@@ -128,6 +128,7 @@ private:
                 m_Graphic.reset(new Graphic(m_WindowHandle));
                 break;
             case WM_PAINT:
+            case WM_MOUSEMOVE:
                 m_Graphic->Rendring();
                 break;
             case WM_DESTROY:

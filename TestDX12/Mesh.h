@@ -17,7 +17,7 @@ struct VERTEX
 {
     DirectX::XMFLOAT4 Postion;
     DirectX::XMFLOAT2 Texcord;
-    DirectX::XMFLOAT3 Normal;
+    DirectX::XMFLOAT4 Normal;
     DirectX::XMFLOAT3 Tangent;
     DirectX::XMFLOAT4 Color;
 };
@@ -41,7 +41,7 @@ public:
     const D3D12_VERTEX_BUFFER_VIEW *const VertexView() { return &m_VertexView; }
     const D3D12_INDEX_BUFFER_VIEW *const IndexView() { return &m_IndexView; }
     const std::vector<D3D12_INPUT_ELEMENT_DESC> *const InputElements() { return &m_InputElementDescs; }
-    const D3D_PRIMITIVE_TOPOLOGY Topology() { return D3D_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP; }
+    const D3D_PRIMITIVE_TOPOLOGY Topology() { return D3D_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; }
 
 public:
     Mesh(const Microsoft::WRL::ComPtr<ID3D12Device8> device, std::vector<VERTEX> vertecies, std::vector<USHORT> indecies)

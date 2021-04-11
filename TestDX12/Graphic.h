@@ -60,10 +60,14 @@ public:
         auto vertexFor3D = vector<VERTEX>
         {
             // 3D (Anchored center-center)
-            { .Postion { -0.4f, -0.4f, +0.0f, +1.0f }, .Texcord { 0.0f, 1.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
-            { .Postion { -0.4f, +0.4f, +0.0f, +1.0f }, .Texcord { 0.0f, 0.0f, }, .Color { 1.0f, 0.0f, 1.0f, 1.0f}, },
-            { .Postion { +0.4f, -0.4f, +0.0f, +1.0f }, .Texcord { 1.0f, 1.0f, }, .Color { 1.0f, 1.0f, 0.0f, 1.0f}, },
-            { .Postion { +0.4f, +0.4f, +0.0f, +1.0f }, .Texcord { 1.0f, 0.0f, }, .Color { 1.0f, 1.0f, 1.0f, 1.0f}, },
+            { .Postion { -0.4f, -0.4f, +0.0f, 1.0 }, .Texcord { 0.0f, 1.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 0.0f, 1.0f, 1.0f}, },
+            { .Postion { -0.4f, +0.4f, +0.0f, 1.0 }, .Texcord { 0.0f, 0.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 0.0f, 1.0f, 1.0f}, },
+            { .Postion { +0.4f, -0.4f, +0.0f, 1.0 }, .Texcord { 1.0f, 1.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 0.0f, 1.0f, 1.0f}, },
+            { .Postion { +0.4f, +0.4f, +0.0f, 1.0 }, .Texcord { 1.0f, 0.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 0.0f, 1.0f, 1.0f}, },
+            { .Postion { -0.4f, -0.4f, -2.0f, 1.0 }, .Texcord { 0.0f, 1.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 1.0f, 0.0f, 0.5f}, },
+            { .Postion { -0.4f, +0.4f, -2.0f, 1.0 }, .Texcord { 0.0f, 0.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 1.0f, 0.0f, 0.5f}, },
+            { .Postion { +0.4f, -0.4f, -2.0f, 1.0 }, .Texcord { 1.0f, 1.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 1.0f, 0.0f, 0.5f}, },
+            { .Postion { +0.4f, +0.4f, -2.0f, 1.0 }, .Texcord { 1.0f, 0.0f, }, .Normal { 0.0f, 0.0f, -1.0f, 1.0f }, .Color { 0.0f, 1.0f, 0.0f, 0.5f}, },
         };
         auto vertexFor2D = vector<VERTEX>
         {
@@ -75,9 +79,9 @@ public:
         };
         m_Mesh.reset(new Mesh(
             m_Device,
-            // vertexFor3D,
-            vertexFor2D,
-            vector<USHORT>{ 0, 1, 2, 2, 1, 3, }));
+            vertexFor3D,
+            // vertexFor2D,
+            vector<USHORT>{ 0, 1, 2, 2, 1, 3,  4, 5, 6, 6, 5, 7, }));
         m_VertexShader.reset(new Shader("vs_5_0", "vs", ifstream("Shader.hlsl")));
         m_PixelShader.reset(new Shader("ps_5_0", "ps", ifstream("Shader.hlsl")));
         m_MVP.reset(new MVP(m_Device, m_WindowHandle));
@@ -96,6 +100,7 @@ public:
         using namespace DirectX;
 
         m_FrameIndex++;
+        m_MVP->UpdateLocalY(XM_PI / 180 * m_FrameIndex);
 
         auto commandAllocator = m_CommandAllocators[m_SwapChainRenderTarget->CurrentIndex()];
         ComPtr<ID3D12GraphicsCommandList> commandList;
@@ -228,7 +233,7 @@ public:
             .StreamOutput = {},
             .BlendState =
             {
-                .AlphaToCoverageEnable = true,
+                .AlphaToCoverageEnable = false,
                 .IndependentBlendEnable = false,
                 .RenderTarget =
                 {
