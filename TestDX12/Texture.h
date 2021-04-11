@@ -23,9 +23,6 @@ private:
         std::byte A;
     };
     Microsoft::WRL::ComPtr<ID3D12Device8> m_Device;
-    D3D12_HEAP_PROPERTIES m_UploadHeapProp = {};
-    D3D12_RESOURCE_DESC m_UploadResourceDesc = {};
-    Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadResource;
     D3D12_HEAP_PROPERTIES m_HeapProp = {};
     D3D12_RESOURCE_DESC m_ResourceDesc = {};
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DescriptorHeap;
@@ -85,7 +82,7 @@ public:
         // };
 
         // Upload用
-        m_UploadHeapProp =
+        auto uploadHeapProp = D3D12_HEAP_PROPERTIES
         {
             .Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_CUSTOM,
             .CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_WRITE_BACK,
@@ -93,7 +90,7 @@ public:
             .CreationNodeMask = 0,
             .VisibleNodeMask = 0,
         };
-        m_UploadResourceDesc =
+        auto uploadResourceDesc = D3D12_RESOURCE_DESC
         {
             .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             .Alignment = 0,
@@ -106,15 +103,16 @@ public:
             .Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN,
             .Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
         };
-        AssertOK(m_Device->CreateCommittedResource(&m_UploadHeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &m_UploadResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_UploadResource)));
-        AssertOK(m_UploadResource->WriteToSubresource(0, nullptr, matrix.data(), static_cast<UINT>(rect.Width * sizeof(*matrix.data())), static_cast<UINT>(matrix.size() * sizeof(*matrix.data()))));
+        ComPtr<ID3D12Resource> uploadResource;
+        AssertOK(m_Device->CreateCommittedResource(&uploadHeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &uploadResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadResource)));
+        AssertOK(uploadResource->WriteToSubresource(0, nullptr, matrix.data(), static_cast<UINT>(rect.Width * sizeof(*matrix.data())), static_cast<UINT>(matrix.size() * sizeof(*matrix.data()))));
         D3D12_TEXTURE_COPY_LOCATION src
         {
-            .pResource = m_UploadResource.Get(),
+            .pResource = uploadResource.Get(),
             .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
             .SubresourceIndex = 0,
         };
-        // m_UploadHeapProp =
+        // uploadHeapProp =
         // {
         //     .Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD,
         //     .CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
@@ -122,7 +120,7 @@ public:
         //     .CreationNodeMask = 0,
         //     .VisibleNodeMask = 0,
         // };
-        // m_UploadResourceDesc =
+        // uploadResourceDesc =
         // {
         //     .Dimension = D3D12_RESOURCE_DIMENSION::D3D12_RESOURCE_DIMENSION_BUFFER,
         //     .Alignment = 0,
@@ -135,14 +133,14 @@ public:
         //     .Layout = D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
         //     .Flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
         // };
-        // AssertOK(m_Device->CreateCommittedResource(&m_UploadHeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &m_UploadResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_UploadResource)));
+        // AssertOK(m_Device->CreateCommittedResource(&uploadHeapProp, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE, &uploadResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadResource)));
         // void *mapping;
-        // AssertOK(m_UploadResource->Map(0, nullptr, &mapping));
+        // AssertOK(uploadResource->Map(0, nullptr, &mapping));
         // std::memcpy(mapping, matrix.data(), matrix.size() * sizeof(*matrix.data()));
-        // m_UploadResource->Unmap(0, nullptr);
+        // uploadResource->Unmap(0, nullptr);
         // D3D12_TEXTURE_COPY_LOCATION src
         // {
-        //     .pResource = m_UploadResource.Get(),
+        //     .pResource = uploadResource.Get(),
         //     .Type = D3D12_TEXTURE_COPY_TYPE::D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
         //     .PlacedFootprint = footprint,
         // };

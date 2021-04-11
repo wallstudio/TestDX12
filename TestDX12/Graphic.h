@@ -213,8 +213,6 @@ public:
         }
         AssertOK(m_Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
         commandList->SetGraphicsRootSignature(rootSignature.Get());
-        auto heaps = vector{ m_MVP->DescriptorHeap().Get(), m_Texture->DescriptorHeap().Get() };
-        // commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
         commandList->SetDescriptorHeaps(1, m_MVP->DescriptorHeap().GetAddressOf());
         commandList->SetGraphicsRootDescriptorTable(0, m_MVP->DescriptorHandle());
         commandList->SetDescriptorHeaps(1, m_Texture->DescriptorHeap().GetAddressOf());
